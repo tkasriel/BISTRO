@@ -1,14 +1,9 @@
-# TODO: verify that mode / neighborhood works V
-#		rename cols to understandable names ~
-#		Create a to/from map to see if it's consistent V
-#		Fix visualizations V
-#		Granular heatmap
 
 
 NODE_FILE = "../input_files/sf_light_nodes_geometry.geojson"
 LINK_FILE = "../input_files/sf_light_link_geometry.geojson"
 DATA_FILE = "../input_files/sf_light_50k_BAU_link_stats_by_hour.csv"
-OUTPUT_LINK_FILE = "../output_files/tripDensity.json"
+OUTPUT_LINK_FILE = "../output_files/tripDensity.csv"
 ZONE_FILE = "../input_files/shapefiles/SF_Neighborhoods/shape.json" #SF_Neighborhoods // TAZ_SF
 MODES = "walk, bus, bike, walk_transit, drive_transit, ridehail_transit, ride_hail, ridehail_pooled, car".split(", ")
 MODE_GROUPS = "active, car, ridehail, transit".split(", ") #pedestrian, car, ridehail, public transport
@@ -129,15 +124,20 @@ legs = loadLegs(database, simulation_id)
 links = loadLinks(database, scenario)
 trips = loadTrips(db, simulation_id)
 population = loadPopulation(db, scenario)
+vehicles = loadVehicles(db, scenario)
+vehicleTypes = loadVehicleTypes(db, scenario)
+paths = loadPaths(db, simulation_id, scenario)
 print("Table queries finished")
 
 with open(zone_file, "r") as zoneFile:
 	zones = json.load(zoneFile)
 with open(node_file, "r") as nodeFile:
 	nodes = json.load(nodeFile)
+with open(speed_file, "r") as speedFile:
+	speeds = speedFile.readlines()
 print("Files opened")
 
-def travelTimesByZone(submission, node_file, zone_file):
+def travelTimesByZone():
 	global legs, links, zones, nodes
 	polys = []
 	for i, poly in enumerate(zones["features"]):
@@ -260,7 +260,9 @@ def travelTimesByZone(submission, node_file, zone_file):
 			poly["properties"]["avgTimeFrom"] = round(poly["properties"]["ftotTime"] / poly["properties"]["fnumNodes"] * 10) / 10
 		if poly["properties"]["tnumNodes"] + poly["properties"]["fnumNodes"] > 0:
 			poly["properties"]["avgTime"] = round((poly["properties"]["ttotTime"] + poly["properties"]["ftotTime"]) / (poly["properties"]["tnumNodes"] + poly["properties"]["fnumNodes"]) * 10) / 10
-def costsByZone (submission, node_file, zone_file, isTAZ):
+	with open (OUTPUT_FOLDER+"/travelTimes.json", "w") as out:
+		json.dump(zones, out, allow_nan=True)
+def costsByZone (isTAZ):
 	global trips, links, population, legs, zones, nodes
 	polys = []
 	for i, poly in enumerate(zones["features"]):
@@ -426,9 +428,10 @@ def costsByZone (submission, node_file, zone_file, isTAZ):
 		if poly["properties"]["numVals"] > 0:
 			poly["properties"]["avgCost"] = round(poly["properties"]["totCost"] / poly["properties"]["numVals"] * 10) / 10
 	
-	return zones
-def modeShareByZone(submission, node_file, zone_file, isTAZ):
-
+	with open (OUTPUT_FOLDER+"/costsByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
+		json.dump(zones, out, allow_nan=True)
+def modeShareByZone(isTAZ):
+	global trips, links, population, legs, nodes, zones
 	#Run as multithread
 	def processNodes (**kwargs):
 		'''kwargs: polys, nodes, st, end'''
@@ -551,19 +554,8 @@ def modeShareByZone(submission, node_file, zone_file, isTAZ):
 			threadLock.release()
 		return [missingNum, ignored, ignored_modes]
 
-	db, scenario, simulation_id = loadDB(submission)
-	trips = loadTrips(db, simulation_id)
-	links = loadLinks(db, scenario)
-	population = loadPopulation(db, scenario)
-	legs = loadLegs(db, simulation_id)
-
-	if os.path.exists("../output_files/missingPIDs.csv"):
+		if os.path.exists("../output_files/missingPIDs.csv"):
 		os.remove("../output_files/missingPIDs.csv")
-	with open(zone_file, "r") as zoneFile:
-		zones = json.load(zoneFile)
-	with open(node_file, "r") as nodeFile:
-		nodes = json.load(nodeFile)
-	print("Files opened")
 
 	polys = []
 	for i, poly in enumerate(zones["features"]):
@@ -701,28 +693,26 @@ def modeShareByZone(submission, node_file, zone_file, isTAZ):
 		poly["properties"]["modal_percentage"] = "%i%%"%((poly["properties"]["modal_count"] / totNum) * 100)
 		poly["properties"]["modal_percentage_hidden"] = (poly["properties"]["modal_count"] / totNum)
 			
-	
-	return zones
-def speedByLink(link_file, speed_file):
-	with open(link_file, "r") as linkFile:
-		links = json.load(linkFile)
-	with open(speed_file, "r") as speedFile:
-		speeds = speedFile.readlines()
-	print("Files opened")
+	with open (OUTPUT_FOLDER+"/costsByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
+		json.dump(zones, out, allow_nan=True)
+def speedByLink(link_file, speed_file): #TODO: replace linkfile with link table
+	global links, speeds
 	
 	out = []
 	index = 0
+	linkMap = {}
 	for t in range(math.ceil(24 * 60 * 60 / TIME_SEP)):
 		for i in range(len(links["features"])):
 			out.append({})
-			out[index]["LinkID"] = links["features"][i]["properties"]["link"]
-			out[index]["coords"] = links["features"][i]["geometry"]["coordinates"][:]
+			out[index]["LinkID"] = links["LinkId"][i]
+			linkMap[links["LinkId"][i]] = index
+			out[index]["coords"] = [[links["fromLocationX"][i], links["fromLocationY"][i]],[links["toLocationX"][i], links["toLocationY"][i]]]
 			out[index]["totSpeed"] = 0
 			out[index]["numVals"] = 0
 			out[index]["avgSpeed"] = None
 			out[index]["time"] = "%d:%02d:%02d" %((t * TIME_SEP) // 3600, ((t*TIME_SEP) // 60) % 60, (t * TIME_SEP) % 60)
 			index += 1
-	linkMap = list(map(lambda x: str(x["properties"]["link"]), links["features"]))
+	# linkMap = list(map(lambda x: str(x["properties"]["link"]), links["features"]))
 	for l in speeds[1:]:
 		line = l.split(",")
 		speed = float(line[11])
@@ -741,7 +731,8 @@ def speedByLink(link_file, speed_file):
 		outFile.write("ID,totSpeed,numVals,avgSpeed,time,fromLat,fromLong,toLat,toLong\n")
 		for link in out:
 			outFile.write(",".join(list(map(lambda x: str(x), [link["LinkID"], link["totSpeed"], link["numVals"], link["avgSpeed"], link["time"], link["coords"][0][0], link["coords"][0][1], link["coords"][1][0], link["coords"][1][1]]))) + "\n")
-def speedByZone(zone_file, link_file, speed_file, node_file, isTAZ):
+def speedByZone(isTAZ):
+	global zones, links, speeds, nodes
 	def processNodes (**kwargs):
 		'''kwargs: polys, nodes, st, end'''
 		nodes = kwargs.get("nodes")
@@ -790,14 +781,6 @@ def speedByZone(zone_file, link_file, speed_file, node_file, isTAZ):
 				zones["features"][index]["properties"]["numVals"] += 1
 			threadLock.release()
 		return None
-	
-	with open(zone_file, "r") as zoneFile:
-		zones = json.load(zoneFile)
-	with open(speed_file, "r") as speedFile:
-		speeds = speedFile.readlines()
-	with open(node_file, "r") as nodeFile:
-		nodes = json.load(nodeFile)
-	print("Files opened")
 
 	polys = []
 	for i, poly in enumerate(zones["features"]):
@@ -858,8 +841,10 @@ def speedByZone(zone_file, link_file, speed_file, node_file, isTAZ):
 	
 	for i, zone in enumerate(zones["features"]):
 		zone["properties"]["avgSpeed"] = zone["properties"]["totSpeed"] / zone["properties"]["numVals"]
-	return zones
-def VMTByZone (zone_file, link_file, data_file, node_file, isTAZ):
+	with open (OUTPUT_FOLDER+"/speedByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
+		json.dump(zones, out, allow_nan=True)
+def VMTByZone (isTAZ):
+	global zones, links, speeds, nodes
 	def processNodes (**kwargs):
 		'''kwargs: polys, nodes, st, end'''
 		nodes = kwargs.get("nodes")
@@ -908,14 +893,6 @@ def VMTByZone (zone_file, link_file, data_file, node_file, isTAZ):
 				zones["features"][index]["properties"]["VMT"] += volume * length * meterToMile
 			threadLock.release()
 		return None
-
-	with open(zone_file, "r") as zoneFile:
-		zones = json.load(zoneFile)
-	with open(data_file, "r") as dataFile:
-		data = dataFile.readlines()
-	with open(node_file, "r") as nodeFile:
-		nodes = json.load(nodeFile)
-	print("Files opened")
 
 	polys = []
 	for i, poly in enumerate(zones["features"]):
@@ -972,16 +949,18 @@ def VMTByZone (zone_file, link_file, data_file, node_file, isTAZ):
 	threadLock = threading.Lock()
 	threads = []
 	for i in range(NUM_THREADS):
-		st = max((i * len(data)) // NUM_THREADS, 1)
-		end = ((i+1) * len(data)) // NUM_THREADS
-		threads.append(processingThread(i, "data_thread_" + str(i), processVMT, data=data, polys=polys, stP=st, endP=end))
+		st = max((i * len(speeds)) // NUM_THREADS, 1)
+		end = ((i+1) * len(speeds)) // NUM_THREADS
+		threads.append(processingThread(i, "data_thread_" + str(i), processVMT, data=speeds, polys=polys, stP=st, endP=end))
 	for thread in threads:
 		thread.start()
 	for thread in threads:
 		thread.join()
 
-	return zones
-def occupancyByZone(submission, node_file, zone_file, isTAZ):
+	with open (OUTPUT_FOLDER+"/VMT"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
+		json.dump(zones, out, allow_nan=True)
+def occupancyByZone(isTAZ):
+	global paths, links, vehicles, vehicleTypes, links, zones, nodes
 	def processNodes (**kwargs):
 		'''kwargs: polys, nodes, st, end'''
 		nodes = kwargs.get("nodes")
@@ -1091,18 +1070,6 @@ def occupancyByZone(submission, node_file, zone_file, isTAZ):
 					zones["features"][ind]["properties"]["numVals"] += 1
 				threadLock.release()
 
-	db, scenario, simulation_id = loadDB(submission)
-	paths = loadPaths(db, simulation_id, scenario)
-	vehicles = loadVehicles(db, scenario)
-	vehicleTypes = loadVehicleTypes(db, scenario)
-	links = loadLinks(db, scenario)
-	
-	with open(zone_file, "r") as zoneFile:
-		zones = json.load(zoneFile)
-	with open(node_file, "r") as nodeFile:
-		nodes = json.load(nodeFile)
-	print("Files opened")
-
 	polys = []
 	for i, poly in enumerate(zones["features"]):
 		# print(poly["geometry"]["coordinates"][0])
@@ -1197,8 +1164,10 @@ def occupancyByZone(submission, node_file, zone_file, isTAZ):
 	for thread in threads:
 		thread.join()
 	
-	return zones
-def timeDelayByZone(submission, node_file, zone_file, isTAZ):
+	with open (OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
+		json.dump(zones, out, allow_nan=True)
+def timeDelayByZone(isTAZ):
+	global paths, population, links, zones, nodes
 	def processNodes (**kwargs):
 		'''kwargs: polys, nodes, st, end'''
 		nodes = kwargs.get("nodes")
@@ -1291,17 +1260,6 @@ def timeDelayByZone(submission, node_file, zone_file, isTAZ):
 			for ind in inds:
 				zones["features"][ind]["properties"]["timeDelay"] = totalTime - expectedTime
 			threadLock.release()
-
-	db, scenario, simulation_id = loadDB(submission)
-	paths = loadPaths(db, simulation_id, scenario)
-	population = loadPopulation(db, scenario)
-	links = loadLinks(db, scenario)
-
-	with open(zone_file, "r") as zoneFile:
-		zones = json.load(zoneFile)
-	with open(node_file, "r") as nodeFile:
-		nodes = json.load(nodeFile)
-	print("Files opened")
 
 	polys = []
 	for i, poly in enumerate(zones["features"]):
@@ -1396,8 +1354,10 @@ def timeDelayByZone(submission, node_file, zone_file, isTAZ):
 	for thread in threads:
 		thread.join()
 	
-	return zones
-def tripDensityByZone(submission, node_file, zone_file, isTAZ):
+	with open (OUTPUT_FOLDER+"/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
+		json.dump(zones, out, allow_nan=True)
+def tripDensityByZone(isTAZ):
+	global trips, links, legs, zones, nodes
 	def processNodes (**kwargs):
 		'''kwargs: polys, nodes, st, end'''
 		
@@ -1494,18 +1454,7 @@ def tripDensityByZone(submission, node_file, zone_file, isTAZ):
 			threadLock.release()
 		return None
 			
-
-	db, scenario, simulation_id = loadDB(submission)
-	trips = loadTrips(db, simulation_id)
-	links = loadLinks(db, scenario)
-	legs = loadLegs(db, simulation_id)
 	threadLock = threading.Lock()
-
-	with open(zone_file, "r") as zoneFile:
-		zones = json.load(zoneFile)
-	with open(node_file, "r") as nodeFile:
-		nodes = json.load(nodeFile)
-	print("Files opened")
 
 	polys = []
 	for i, poly in enumerate(zones["features"]):
@@ -1576,8 +1525,10 @@ def tripDensityByZone(submission, node_file, zone_file, isTAZ):
 		thread.start()
 	for thread in threads:
 		thread.join()
-	return zones
-def heatMap(submission, node_file):
+	with open (OUTPUT_FOLDER+"/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
+		json.dump(zones, out, allow_nan=True)
+def heatMap():
+	global paths, links
 	def processLinks (links):
 		linkMap = {}
 		for i in range(len(links["LinkId"])):
@@ -1620,9 +1571,6 @@ def heatMap(submission, node_file):
 		print (out[:10])
 		return out
 
-	db, scenario, simulation_id = loadDB(submission)
-	paths = loadPaths(db, simulation_id, scenario)
-	links = loadLinks(db, scenario)
 	threadLock = threading.Lock()
 
 	linkMap = processLinks(links)
@@ -1639,7 +1587,10 @@ def heatMap(submission, node_file):
 	for thread in threads:
 		thread.join()
 		out += thread.out
-	return out
+		
+	with open (OUTPUT_FOLDER+"/heatMap.json", "w") as out:
+		for line in out:
+			outFile.write(line + "\n")
 
 
 
