@@ -406,3 +406,15 @@ log-path_IS_UNDEFINED/
 !/fixed-data/sf_light/urbansim/100k/buildings.csv.gz
 !/fixed-data/sf_light/urbansim/100k/units.csv.gz
 !/fixed-data/sf_light/urbansim/100k/parcels.csv.gz
+SF_light/visualizations/costs_neighbors.html
+SF_light/visualizations/costs_TAZ.html
+SF_light/visualizations/heatMap.html
+SF_light/visualizations/kepler.gl.html
+SF_light/visualizations/linkSpeed.html
+SF_light/visualizations/modeshare_neighors.html
+SF_light/visualizations/modeshare_TAZ.html
+SF_light/visualizations/speeds_neighbhors.html
+SF_light/visualizations/speeds_TAZ.html
+SF_light/visualizations/travelTime_neighbors.html
+SF_light/visualizations/VMT_neighbors.html
+SF_light/visualizations/VMT_TAZ.html

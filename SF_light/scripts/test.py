@@ -7,11 +7,10 @@ TAZ_ZONE_FILE = "../input_files/shapefiles/TAZ_SF/shape.json"
 MODES = "walk, bus, bike, walk_transit, drive_transit, ridehail_transit, ride_hail, ridehail_pooled, car".split(", ")
 MODE_GROUPS = "active, car, ridehail, transit".split(", ") #pedestrian, car, ridehail, public transport
 MODE_GROUP_DICT = {"walk": 0, "bike": 0, "walk_transit": 3, "drive_transit": 3, "ridehail_transit": 3, "ride_hail": 2, "ridehail_pooled":2, "car":1, "bus": 3}
-SUBMISSION = "db21069e-d19b-11ea-bfff-faffc250aee5"
+SIMUL_ID = "2cdfca9a-2833-11eb-a514-9801a798306b" #db21069e-d19b-11ea-bfff-faffc250aee5
 TIME_SEP = 14400 # in seconds
 INCOME_SEP = 50000 # 0 - 200 000
 NUM_THREADS = 4
-
 import os, sys, threading, copy, json, math
 sys.path.append(os.path.abspath("/Users/git/BISTRO_Dashboard/BISTRO_Dashboard"))
 os.chdir('/Users/git/BISTRO_test/SF_light/scripts') # Cause VScode is weird
@@ -25,12 +24,8 @@ import shapely.geometry as geo
 # Am I still going to keep them? yes
 def loadDB (simulation_id):
 	database = BistroDB('bistro', 'bistroclt', 'client', '52.53.200.197')
-	# submission = submission_id
-	# simulation = database.load_simulation_df()[database.load_simulation_df()['scenario'] == 'sf_light-50k']
-	# simulation_id = simulation.loc[0, 'simulation_id']
-	simulation_id = 'db21069e-d19b-11ea-bfff-faffc250aee5'# simulation_id for BAU 06/25 BEAM output
-	scenario = "sf_light-50k" #simulation.iloc[0, 2]
 	simulation_id = [simulation_id]
+	scenario = database.get_scenario(simulation_id)
 	return (database, scenario, simulation_id)
 def loadLegs(db, simulation_id):
 	print("Loading legs...")
@@ -118,24 +113,26 @@ class processingThread (threading.Thread):
 		print(self.name + ": Process finished")
 
 # While this makes one individual visualization much slower, it means that I can run all of them much faster (each can be disabled if you don't want to waste time grabbing useless tables)
-(database, scenario, simulation_id) = loadDB(SUBMISSION)
-legs = loadLegs(database, simulation_id)
+(database, scenario, simulation_id) = loadDB(SIMUL_ID)
+# legs = loadLegs(database, simulation_id)
 links = loadLinks(database, scenario)
 trips = loadTrips(database, simulation_id)
-population = loadPopulation(database, scenario)
+# population = loadPopulation(database, scenario)
 vehicles = loadVehicles(database, scenario)
+activities = loadAct(database, scenario)
+# facilities = loadFacilities(database, scenario)
 vehicleTypes = loadVehicleTypes(database, scenario)
-paths = loadPaths(database, simulation_id, scenario)
+# paths = loadPaths(database, simulation_id, scenario)
 print("Table queries finished")
 
-with open(NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
-	neighborZones = json.load(neighborZoneFile)
-with open(TAZ_ZONE_FILE, "r") as TAZZoneFile:
-	TAZZones = json.load(TAZZoneFile)
-with open(NODE_FILE, "r") as nodeFile:
-	nodes = json.load(nodeFile)
-with open(DATA_FILE, "r") as speedFile:
-	speeds = speedFile.readlines()
+# with open(NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
+# 	neighborZones = json.load(neighborZoneFile)
+# with open(TAZ_ZONE_FILE, "r") as TAZZoneFile:
+# 	TAZZones = json.load(TAZZoneFile)
+# with open(NODE_FILE, "r") as nodeFile:
+# 	nodes = json.load(nodeFile)
+# with open(DATA_FILE, "r") as speedFile:
+# 	speeds = speedFile.readlines()
 print("Files opened")
 
 def travelTimesByZone():
@@ -1611,12 +1608,102 @@ def heatMap():
 		thread.join()
 		out += thread.out
 		
-	with open (OUTPUT_FOLDER+"/heatMap.csv", "w") as out:
+	with open (OUTPUT_FOLDER+"/heatMap.csv", "w") as outFile:
 		for line in out:
 			outFile.write(line + "\n")
 def speedByLink(): #TODO: make updated version
 	global links, speeds
+def tripsByTime():
+	global trips, links, activities
+	def processLinks(links):
+		linkMap = {}
+		for i in range(len(links)):
+			linkId = str(int(links["LinkId"][i]))
+			fromLoc = [links["fromLocationX"][i], links["fromLocationY"][i]]
+			toLoc = [links["toLocationX"][i], links["toLocationY"][i]]
+			linkMap[str(linkId)] = [fromLoc, toLoc]
+		return linkMap
+	def processActivities(**kwargs):
+		'''kwargs: activities, st, end'''
+		activities = kwargs["activities"]
+		st = kwargs["st"]
+		end = kwargs["end"]
+		actMap = {}
+		for i in range(st, end):
+			threadLock.acquire()
+			pid = activities["PID"][i]
+			actNum = activities["ActNum"][i]
+			linkId = activities["linkId"][i]
+			threadLock.release()
+			actMap[pid] = {}
+			actMap[pid][actNum] = linkId
+			print("test")
+		# print(actMap)
+		return actMap
+	def processTrips (**kwargs):
+		'''kwargs: linkMap, actMap, trips, st, end'''
+		linkMap = kwargs["linkMap"]
+		actMap = kwargs["actMap"]
+		trips = kwargs["trips"]
+		st = kwargs["st"]
+		end = kwargs["end"]
+		out = []
+		for i in range(st, end):
+			threadLock.acquire()
+			pid = trips["PID"][i]
+			orgAct = trips["OriginAct"][i]
+			destAct = trips["DestinationAct"][i]
+			stTime = trips["Start_time"][i]
+			endTime = trips["End_time"][i]
+			threadLock.release()
+			time = (stTime + endTime) / 2
+			# print(pid)
+			# print(actMap)
+			startActPID = actMap[pid]
+			startAct = startActPID[orgAct]
+			startLink = linkMap[startAct]
+			endLink = linkMap[actMap[pid][destAct]]
+			startLoc = [(startLink[0][0] + startLink[1][0]) / 2, (startLink[0][1] + startLink[1][1]) / 2]
+			endLoc = [(endLink[0][0] + endLink[1][0]) / 2, (endLink[0][1] + endLink[1][1]) / 2]
+			out.append(startLoc[:] + endLoc[:] + [time])
+		return out
+	
+	threadLock = threading.Lock()
 
+	print("Creating visual: tripsArcs")
+	out = []
+	out.append("StartLat,StartLong,EndLat,EndLong,Time")
+	linkMap = processLinks(links)
+	actMap = {}
+	threads = []
+	for i in range(NUM_THREADS):
+		size = len(activities["PID"])
+		print(activities)
+		st = (i * size) // NUM_THREADS
+		end = ((i+1) * size) // NUM_THREADS
+		threads.append(processingThread(i, "activity_thread_" + str(i), processActivities, activities=activities, st=st, end=end))
+	for thread in threads:
+		thread.start()
+	for thread in threads:
+		thread.join()
+		actMap.update(thread.out)
+
+	out = []
+	threads = []
+	for i in range(NUM_THREADS):
+		size = len(trips["PID"])
+		st = (i * size) // NUM_THREADS
+		end = ((i+1) * size) // NUM_THREADS
+		threads.append(processingThread(i, "trip_thread_" + str(i), processTrips, linkMap=linkMap, actMap=actMap, trips=trips, st=st, end=end))
+	for thread in threads:
+		thread.start()
+	for thread in threads:
+		thread.join()
+		out = out + thread.out
+
+	with open (OUTPUT_FOLDER+"/tripsByTime.csv", "w") as outFile:
+		for line in out:
+			outFile.write(",".join(line) + "\n")
 
 
 
@@ -1627,19 +1714,24 @@ def speedByLink(): #TODO: make updated version
 
 
 #Write to json file
-travelTimesByZone()
-costsByZone(True)
-costsByZone(False)
-modeShareByZone(True)
-modeShareByZone(False)
-speedByZone(True)
-speedByZone(False)
-VMTByZone(True)
-VMTByZone(False)
-occupancyByZone(True)
-occupancyByZone(False)
-timeDelayByZone(True)
-timeDelayByZone(False)
-tripDensityByZone(True)
-tripDensityByZone(False)
-heatMap()
+# travelTimesByZone()
+# costsByZone(True)
+# costsByZone(False)
+# modeShareByZone(True)
+# modeShareByZone(False)
+# speedByZone(True)
+# speedByZone(False)
+# VMTByZone(True)
+# VMTByZone(False)
+# occupancyByZone(True)
+# occupancyByZone(False)
+# timeDelayByZone(True)
+# timeDelayByZone(False)
+# tripDensityByZone(True)
+# tripDensityByZone(False)
+# heatMap()
+# tripsByTime()
+# print(activities)
+scenario = "sf_light-25k"
+with open("test.txt", "w") as file:
+	file.write(str(database.get_simul_by_scenario(scenario)))
