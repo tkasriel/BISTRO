@@ -1,5 +1,3 @@
-NODE_FILE = "../input_files/sf_light_nodes_geometry.geojson"
-LINK_FILE = "../input_files/sf_light_link_geometry.geojson"
 DATA_FILE = "../input_files/sf_light_50k_BAU_link_stats_by_hour.csv"
 OUTPUT_FOLDER = "../output_files/"
 NEIGHBOR_ZONE_FILE = "../input_files/shapefiles/SF_Neighborhoods/shape.json" #SF_Neighborhoods // TAZ_SF
@@ -7,7 +5,7 @@ TAZ_ZONE_FILE = "../input_files/shapefiles/TAZ_SF/shape.json"
 MODES = "walk, bus, bike, walk_transit, drive_transit, ridehail_transit, ride_hail, ridehail_pooled, car".split(", ")
 MODE_GROUPS = "active, car, ridehail, transit".split(", ") #pedestrian, car, ridehail, public transport
 MODE_GROUP_DICT = {"walk": 0, "bike": 0, "walk_transit": 3, "drive_transit": 3, "ridehail_transit": 3, "ride_hail": 2, "ridehail_pooled":2, "car":1, "bus": 3}
-SIMUL_ID = "2cdfca9a-2833-11eb-a514-9801a798306b" #db21069e-d19b-11ea-bfff-faffc250aee5
+SIMUL_ID = "db21069e-d19b-11ea-bfff-faffc250aee5" #db21069e-d19b-11ea-bfff-faffc250aee5
 TIME_SEP = 14400 # in seconds
 INCOME_SEP = 50000 # 0 - 200 000
 NUM_THREADS = 4
@@ -47,7 +45,10 @@ def loadLegs(db, simulation_id):
 	return legs
 def loadAct(db, scenario):
 	print("Loading activities...")
-	acts = db.load_activities(scenario)
+	# acts = db.load_activities(scenario)
+	'ind,pid,act_id,act_type,act_link,act_start_time,act_end_time,scenario'
+	df_cols = ["index", "PID", "ActNum", "Type", "LinkId", "Start_time", "End_time", "scenario"]
+	acts = pd.read_csv('../input_files/sf_light_100k_simple_network_act.csv', header=0, names=df_cols)
 	print("activities loaded")
 	return acts
 def loadFacilities(db, scenario):
@@ -98,6 +99,11 @@ def loadVehicleTypes (db, scenario):
 	vehicles = db.load_vehicle_types(scenario)
 	print("vehicles types loaded")
 	return vehicles
+def loadNodes (db, scenario):
+	print("Loading nodes...")
+	nodes = db.load_nodes(scenario)
+	print("nodes loaded")
+	return nodes
 
 # Generic class to call a function on multiple threads
 class processingThread (threading.Thread):
@@ -114,25 +120,24 @@ class processingThread (threading.Thread):
 
 # While this makes one individual visualization much slower, it means that I can run all of them much faster (each can be disabled if you don't want to waste time grabbing useless tables)
 (database, scenario, simulation_id) = loadDB(SIMUL_ID)
-# legs = loadLegs(database, simulation_id)
+legs = loadLegs(database, simulation_id)
 links = loadLinks(database, scenario)
 trips = loadTrips(database, simulation_id)
-# population = loadPopulation(database, scenario)
+population = loadPopulation(database, scenario)
 vehicles = loadVehicles(database, scenario)
 activities = loadAct(database, scenario)
-# facilities = loadFacilities(database, scenario)
+facilities = loadFacilities(database, scenario)
 vehicleTypes = loadVehicleTypes(database, scenario)
-# paths = loadPaths(database, simulation_id, scenario)
+paths = loadPaths(database, simulation_id, scenario)
+nodes = loadNodes(database, scenario)
 print("Table queries finished")
 
-# with open(NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
-# 	neighborZones = json.load(neighborZoneFile)
-# with open(TAZ_ZONE_FILE, "r") as TAZZoneFile:
-# 	TAZZones = json.load(TAZZoneFile)
-# with open(NODE_FILE, "r") as nodeFile:
-# 	nodes = json.load(nodeFile)
-# with open(DATA_FILE, "r") as speedFile:
-# 	speeds = speedFile.readlines()
+with open(NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
+	neighborZones = json.load(neighborZoneFile)
+with open(TAZ_ZONE_FILE, "r") as TAZZoneFile:
+	TAZZones = json.load(TAZZoneFile)
+with open(DATA_FILE, "r") as speedFile:
+	speeds = speedFile.readlines()
 print("Files opened")
 
 def travelTimesByZone():
@@ -182,8 +187,8 @@ def travelTimesByZone():
 	for i in range(len(links["LinkId"])):
 		linkMap[int(links["LinkId"][i])] = [int(links["fromLocationID"][i]), int(links["toLocationID"][i])]
 	nodeMap = [[] for i in range(100000)]
-	for n in nodes["features"]:
-		nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
+	for i in range(len(nodes["NodeId"])):
+		nodeMap[int(nodes["NodeId"][i])] = [nodes["x"][i], nodes["y"][i]]
 
 
 	#Parse input per leg
@@ -330,8 +335,8 @@ def costsByZone (isTAZ):
 	for i in range(len(links["LinkId"])):
 		linkMap[int(links["LinkId"][i])] = [int(links["fromLocationID"][i]), int(links["toLocationID"][i])]
 	nodeMap = [[] for i in range(100000)]
-	for n in nodes["features"]:
-		nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
+	for i in range(len(nodes["NodeId"])):
+		nodeMap[int(nodes["NodeId"][i])] = [nodes["x"][i], nodes["y"][i]]
 	popMap = {}
 	for i in range(len(population["PID"])):
 		popMap[population["PID"][i]] = int(population["income"][i])
@@ -451,12 +456,12 @@ def modeShareByZone(isTAZ):
 		end = kwargs.get("end")
 
 		nMap = [0 for i in range(100000)]
-		for node in nodes["features"][st:end]:
+		for i in range(st, end):
 			# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
-			pos = geo.Point(node["geometry"]["coordinates"])
+			pos = geo.Point([nodes["x"][i], nodes["y"][i]])
 			for i, poly in enumerate(polys):
 				if pos.within(poly):
-					nMap[int(node["properties"]["id"])] = i
+					nMap[int(nodes["NodeId"][i])] = i
 					break
 		return nMap
 	def processLegs (**kwargs):
@@ -634,8 +639,8 @@ def modeShareByZone(isTAZ):
 	nodeMap = [0 for i in range(100000)]
 	threads = []
 	for i in range(NUM_THREADS):
-		st = (i * len(nodes["features"])) // NUM_THREADS
-		end = ((i+1) * len(nodes["features"])) // NUM_THREADS
+		st = (i * len(nodes["NodeId"])) // NUM_THREADS
+		end = ((i+1) * len(nodes["NodeId"])) // NUM_THREADS
 		threads.append(processingThread(i, "node_thread_" + str(i), processNodes, polys=polys, nodes=nodes, st=st, end=end))
 	for thread in threads:
 		thread.start()
@@ -722,12 +727,12 @@ def speedByZone(isTAZ):
 		end = kwargs.get("end")
 
 		nMap = [0 for i in range(100000)]
-		for node in nodes["features"][st:end]:
+		for i in range(st, end):
 			# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
-			pos = geo.Point(node["geometry"]["coordinates"])
+			pos = geo.Point([nodes["x"][i], nodes["y"][i]])
 			for i, poly in enumerate(polys):
 				if pos.within(poly):
-					nMap[int(node["properties"]["id"])] = i
+					nMap[int(nodes["NodeId"][i])] = i
 					break
 		return nMap
 	def processSpeeds (**kwargs):
@@ -808,8 +813,8 @@ def speedByZone(isTAZ):
 	nodeMap = [0 for i in range(100000)]
 	threads = []
 	for i in range(NUM_THREADS):
-		st = (i * len(nodes["features"])) // NUM_THREADS
-		end = ((i+1) * len(nodes["features"])) // NUM_THREADS
+		st = (i * len(nodes["NodeId"])) // NUM_THREADS
+		end = ((i+1) * len(nodes["NodeId"])) // NUM_THREADS
 		threads.append(processingThread(i, "node_thread_" + str(i), processNodes, polys=polys, nodes=nodes, st=st, end=end))
 	for thread in threads:
 		thread.start()
@@ -844,12 +849,12 @@ def VMTByZone (isTAZ):
 		end = kwargs.get("end")
 
 		nMap = [0 for i in range(100000)]
-		for node in nodes["features"][st:end]:
+		for i in range(st, end):
 			# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
-			pos = geo.Point(node["geometry"]["coordinates"])
+			pos = geo.Point([nodes["x"][i], nodes["y"][i]])
 			for i, poly in enumerate(polys):
 				if pos.within(poly):
-					nMap[int(node["properties"]["id"])] = i
+					nMap[int(nodes["NodeId"][i])] = i
 					break
 		return nMap
 	def processVMT (**kwargs):
@@ -933,8 +938,8 @@ def VMTByZone (isTAZ):
 	nodeMap = [0 for i in range(100000)]
 	threads = []
 	for i in range(NUM_THREADS):
-		st = (i * len(nodes["features"])) // NUM_THREADS
-		end = ((i+1) * len(nodes["features"])) // NUM_THREADS
+		st = (i * len(nodes["NodeId"])) // NUM_THREADS
+		end = ((i+1) * len(nodes["NodeId"])) // NUM_THREADS
 		threads.append(processingThread(i, "node_thread_" + str(i), processNodes, polys=polys, nodes=nodes, st=st, end=end))
 	for thread in threads:
 		thread.start()
@@ -967,12 +972,12 @@ def occupancyByZone(isTAZ):
 		end = kwargs.get("end")
 
 		nMap = [0 for i in range(100000)]
-		for node in nodes["features"][st:end]:
+		for i in range(st, end):
 			# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
-			pos = geo.Point(node["geometry"]["coordinates"])
+			pos = geo.Point([nodes["x"][i], nodes["y"][i]])
 			for i, poly in enumerate(polys):
 				if pos.within(poly):
-					nMap[int(node["properties"]["id"])] = i
+					nMap[int(nodes["NodeId"][i])] = i
 					break
 		return nMap
 	def processPaths (**kwargs):
@@ -1106,8 +1111,8 @@ def occupancyByZone(isTAZ):
 	nodeMap = [0 for i in range(100000)]
 	threads = []
 	for i in range(NUM_THREADS):
-		st = (i * len(nodes["features"])) // NUM_THREADS
-		end = ((i+1) * len(nodes["features"])) // NUM_THREADS
+		st = (i * len(nodes["NodeId"])) // NUM_THREADS
+		end = ((i+1) * len(nodes["NodeId"])) // NUM_THREADS
 		threads.append(processingThread(i, "node_thread_" + str(i), processNodes, polys=polys, nodes=nodes, st=st, end=end))
 	for thread in threads:
 		thread.start()
@@ -1181,12 +1186,12 @@ def timeDelayByZone(isTAZ):
 		end = kwargs.get("end")
 
 		nMap = [0 for i in range(100000)]
-		for node in nodes["features"][st:end]:
+		for i in range(st, end):
 			# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
-			pos = geo.Point(node["geometry"]["coordinates"])
+			pos = geo.Point([nodes["x"][i], nodes["y"][i]])
 			for i, poly in enumerate(polys):
 				if pos.within(poly):
-					nMap[int(node["properties"]["id"])] = i
+					nMap[int(nodes["NodeId"][i])] = i
 					break
 		return nMap
 	def processPaths (**kwargs):
@@ -1324,8 +1329,8 @@ def timeDelayByZone(isTAZ):
 	nodeMap = [0 for i in range(100000)]
 	threads = []
 	for i in range(NUM_THREADS):
-		st = (i * len(nodes["features"])) // NUM_THREADS
-		end = ((i+1) * len(nodes["features"])) // NUM_THREADS
+		st = (i * len(nodes["NodeId"])) // NUM_THREADS
+		end = ((i+1) * len(nodes["NodeId"])) // NUM_THREADS
 		threads.append(processingThread(i, "node_thread_" + str(i), processNodes, polys=polys, nodes=nodes, st=st, end=end))
 	for thread in threads:
 		thread.start()
@@ -1381,11 +1386,12 @@ def tripDensityByZone(isTAZ):
 		end = kwargs.get("end")
 
 		nMap = [0 for i in range(100000)]
-		for node in nodes["features"][st:end]:
-			pos = geo.Point(node["geometry"]["coordinates"])
+		for i in range(st, end):
+			# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
+			pos = geo.Point([nodes["x"][i], nodes["y"][i]])
 			for i, poly in enumerate(polys):
 				if pos.within(poly):
-					nMap[int(node["properties"]["id"])] = i
+					nMap[int(nodes["NodeId"][i])] = i
 					break
 		return nMap
 	def processLegs (**kwargs):
@@ -1506,8 +1512,8 @@ def tripDensityByZone(isTAZ):
 	nodeMap = [0 for i in range(100000)]
 	threads = []
 	for i in range(NUM_THREADS):
-		st = (i * len(nodes["features"])) // NUM_THREADS
-		end = ((i+1) * len(nodes["features"])) // NUM_THREADS
+		st = (i * len(nodes["NodeId"])) // NUM_THREADS
+		end = ((i+1) * len(nodes["NodeId"])) // NUM_THREADS
 		threads.append(processingThread(i, "node_thread_" + str(i), processNodes, polys=polys, nodes=nodes, st=st, end=end))
 	for thread in threads:
 		thread.start()
@@ -1618,9 +1624,11 @@ def tripsByTime():
 	def processLinks(links):
 		linkMap = {}
 		for i in range(len(links)):
+			threadLock.acquire()
 			linkId = str(int(links["LinkId"][i]))
 			fromLoc = [links["fromLocationX"][i], links["fromLocationY"][i]]
 			toLoc = [links["toLocationX"][i], links["toLocationY"][i]]
+			threadLock.release()
 			linkMap[str(linkId)] = [fromLoc, toLoc]
 		return linkMap
 	def processActivities(**kwargs):
@@ -1631,13 +1639,17 @@ def tripsByTime():
 		actMap = {}
 		for i in range(st, end):
 			threadLock.acquire()
-			pid = activities["PID"][i]
-			actNum = activities["ActNum"][i]
-			linkId = activities["linkId"][i]
+			pid = str(activities["PID"][i])
+			actNum = str(activities["ActNum"][i])
+			try:
+				linkId = str(int(activities["LinkId"][i]))
+			except:
+				linkId = str(activities["LinkId"][i]) #Case: NaN
 			threadLock.release()
-			actMap[pid] = {}
+			if not (actNum in actMap[pid]):
+				actMap[pid] = {}
 			actMap[pid][actNum] = linkId
-			print("test")
+			# print("test")
 		# print(actMap)
 		return actMap
 	def processTrips (**kwargs):
@@ -1648,9 +1660,10 @@ def tripsByTime():
 		st = kwargs["st"]
 		end = kwargs["end"]
 		out = []
+		print(actMap)
 		for i in range(st, end):
 			threadLock.acquire()
-			pid = trips["PID"][i]
+			pid = str(trips["PID"][i])
 			orgAct = trips["OriginAct"][i]
 			destAct = trips["DestinationAct"][i]
 			stTime = trips["Start_time"][i]
@@ -1658,7 +1671,7 @@ def tripsByTime():
 			threadLock.release()
 			time = (stTime + endTime) / 2
 			# print(pid)
-			# print(actMap)
+			
 			startActPID = actMap[pid]
 			startAct = startActPID[orgAct]
 			startLink = linkMap[startAct]
@@ -1678,7 +1691,7 @@ def tripsByTime():
 	threads = []
 	for i in range(NUM_THREADS):
 		size = len(activities["PID"])
-		print(activities)
+		# print(activities)
 		st = (i * size) // NUM_THREADS
 		end = ((i+1) * size) // NUM_THREADS
 		threads.append(processingThread(i, "activity_thread_" + str(i), processActivities, activities=activities, st=st, end=end))
@@ -1700,38 +1713,123 @@ def tripsByTime():
 	for thread in threads:
 		thread.join()
 		out = out + thread.out
-
 	with open (OUTPUT_FOLDER+"/tripsByTime.csv", "w") as outFile:
 		for line in out:
 			outFile.write(",".join(line) + "\n")
+def followPeople():
+	global activities, trips, links
+	def processActivities(**kwargs):
+		'''kwargs: activities, st, end'''
+		activities = kwargs["activities"]
+		st = kwargs["st"]
+		end = kwargs["end"]
+		actMap = {}
+		for i in range(st, end):
+			threadLock.acquire()
+			pid = activities["PID"][i]
+			actNum = activities["ActNum"][i]
+			try:
+				linkId = str(int(activities["LinkId"][i]))
+			except:
+				linkId = str(activities["LinkId"][i]) #Case: NaN
+			threadLock.release()
+			if not (actNum in actMap[pid]):
+				actMap[pid] = {}
+			actMap[pid][actNum] = linkId
 
+			# print("test")
+		print(actMap)
+		return actMap #ouput: {PID: {actID: linkID}}
+	def processLinks(links):
+		linkMap = {}
+		for i in range(len(links)):
+			threadLock.acquire()
+			linkId = str(int(links["LinkId"][i]))
+			fromLoc = [links["fromLocationX"][i], links["fromLocationY"][i]]
+			toLoc = [links["toLocationX"][i], links["toLocationY"][i]]
+			threadLock.release()
+			linkMap[str(linkId)] = [fromLoc, toLoc]
+		print(linkMap)
 
+		return linkMap
 
+	'''
+	Plan:
+	out[PID] = trip every 10 mins. Orig + dest might be the same if person stays in place.
+	'''
+	
+	print("Creating visual: followPeople")
+	out = {}
+	threadLock = threading.Lock()
+	tempMap = {}
+	for i in range(len(trips["PID"])):
+		pid = trips["PID"][i]
+		if pid in tempMap:
+			tempMap[pid] += 1
+		else:
+			tempMap[pid] = 1
+	followedPIDs = []
+	for key in tempMap.keys():
+		if len(followedPIDs) < 100:
+			followedPIDs.append(key)
+			out[key] = [[] for i in range(24*6)]
+	linkMap = processLinks(links)
+	actMap = {}
+	threads = []
+	for i in range(NUM_THREADS):
+		size = len(activities["PID"])
+		st = (i * size) // NUM_THREADS
+		end = ((i+1) * size) // NUM_THREADS
+		threads.append(processingThread(i, "activity_thread_" + str(i), processActivities, activities=activities, st=st, end=end))
+	for thread in threads:
+		thread.start()
+	for thread in threads:
+		thread.join()
+		actMap.update(thread.out)
+
+	for i in range(len(activities["PID"])):
+		pid = activities['PID'][i]
+		if not (pid in followedPIDs):
+			continue
+		stTime = activities["Start_time"][i]
+		endTime = activities["End_time"][i]
+		orgAct = activities["OriginAct"][i]
+		destAct = activities["DestinationAct"][i]
+		avgTime = (stTime + endTime) / 2
+		time = "%d:%02d:%02d" %(avgTime // 3600, (avgTime // 60) % 60, avgTime % 60)
+		out[max(avgTime // (24*6), 24*6-1)] = [str(pid), ",".join(linkMap[actMap[pid][orgAct]][0]), ",".join(linkMap[actMap[pid][destinationAct][1]]), str(time)]
+	with open (OUTPUT_FOLDER+"/followPerson.csv", "w") as outFile:
+		for person in out:
+			for time in person:
+				outFile.write(",".join(time) + "\n") 
 
 
 # speedPerLink(LINK_FILE, DATA_FILE)
 # print ("Data parsed")
 
 
-#Write to json file
-# travelTimesByZone()
-# costsByZone(True)
-# costsByZone(False)
-# modeShareByZone(True)
-# modeShareByZone(False)
-# speedByZone(True)
-# speedByZone(False)
-# VMTByZone(True)
-# VMTByZone(False)
-# occupancyByZone(True)
-# occupancyByZone(False)
-# timeDelayByZone(True)
-# timeDelayByZone(False)
-# tripDensityByZone(True)
-# tripDensityByZone(False)
-# heatMap()
+travelTimesByZone()
+costsByZone(True)
+costsByZone(False)
+modeShareByZone(True)
+modeShareByZone(False)
+speedByZone(True)
+speedByZone(False)
+VMTByZone(True)
+VMTByZone(False)
+occupancyByZone(True)
+occupancyByZone(False)
+timeDelayByZone(True)
+timeDelayByZone(False)
+tripDensityByZone(True)
+tripDensityByZone(False)
+heatMap()
 # tripsByTime()
+# followPeople()
 # print(activities)
-scenario = "sf_light-25k"
-with open("test.txt", "w") as file:
-	file.write(str(database.get_simul_by_scenario(scenario)))
+# scenario = "sf_light-100k"
+# with open("simul_ids.txt", "w") as file:
+# 	file.write(str(database.get_simul_by_scenario(scenario)))
+# with open("scenarios.txt", "w") as file:
+# 	df = database.load_simulation_df()
+# 	file.write(str(df["simulation_id"])  + str(df["scenario"]))
