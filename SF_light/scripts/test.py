@@ -1,17 +1,16 @@
 DATA_FILE = "../input_files/sf_light_50k_BAU_link_stats_by_hour.csv"
 OUTPUT_FOLDER = "../output_files/"
 NEIGHBOR_ZONE_FILE = "../input_files/shapefiles/SF_Neighborhoods/shape.json" #SF_Neighborhoods // TAZ_SF
-TAZ_ZONE_FILE = "../input_files/shapefiles/TAZ_SF/shape.json"
+TAZ_ZONE_FILE = "../input_files/shapefiles/sioux_falls/shape.json"
 MODES = "walk, bus, bike, walk_transit, drive_transit, ridehail_transit, ride_hail, ridehail_pooled, car".split(", ")
 MODE_GROUPS = "active, car, ridehail, transit".split(", ") #pedestrian, car, ridehail, public transport
 MODE_GROUP_DICT = {"walk": 0, "bike": 0, "walk_transit": 3, "drive_transit": 3, "ridehail_transit": 3, "ride_hail": 2, "ridehail_pooled":2, "car":1, "bus": 3}
-SIMUL_ID = "db21069e-d19b-11ea-bfff-faffc250aee5" #db21069e-d19b-11ea-bfff-faffc250aee5
+SIMUL_ID = "c6291868-7cd1-11ea-a911-063f0fd82f9f" #7b6c7e48-a91b-11ea-9534-063f0fd82f9f
 TIME_SEP = 14400 # in seconds
 INCOME_SEP = 50000 # 0 - 200 000
 NUM_THREADS = 4
 import os, sys, threading, copy, json, math
 sys.path.append(os.path.abspath("/Users/git/BISTRO_Dashboard/BISTRO_Dashboard"))
-os.chdir('/Users/git/BISTRO_test/SF_light/scripts') # Cause VScode is weird
 
 from db_loader import BistroDB
 import numpy as np
@@ -51,7 +50,7 @@ def loadAct(db, scenario):
 	acts = pd.read_csv('../input_files/sf_light_100k_simple_network_act.csv', header=0, names=df_cols)
 	print("activities loaded")
 	return acts
-def loadFacilities(db, scenario):
+# def loadFacilities(db, scenario):
 	print("Loading facilities...")
 	facs = db.load_facilities(scenario)
 	print("facilities loaded")
@@ -120,14 +119,14 @@ class processingThread (threading.Thread):
 
 # While this makes one individual visualization much slower, it means that I can run all of them much faster (each can be disabled if you don't want to waste time grabbing useless tables)
 (database, scenario, simulation_id) = loadDB(SIMUL_ID)
-legs = loadLegs(database, simulation_id)
+# legs = loadLegs(database, simulation_id)
 links = loadLinks(database, scenario)
-trips = loadTrips(database, simulation_id)
+# trips = loadTrips(database, simulation_id)
 population = loadPopulation(database, scenario)
-vehicles = loadVehicles(database, scenario)
-activities = loadAct(database, scenario)
-facilities = loadFacilities(database, scenario)
-vehicleTypes = loadVehicleTypes(database, scenario)
+# vehicles = loadVehicles(database, scenario)
+# activities = loadAct(database, scenario)
+# facilities = loadFacilities(database, scenario)
+# vehicleTypes = loadVehicleTypes(database, scenario)
 paths = loadPaths(database, simulation_id, scenario)
 nodes = loadNodes(database, scenario)
 print("Table queries finished")
@@ -136,8 +135,8 @@ with open(NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
 	neighborZones = json.load(neighborZoneFile)
 with open(TAZ_ZONE_FILE, "r") as TAZZoneFile:
 	TAZZones = json.load(TAZZoneFile)
-with open(DATA_FILE, "r") as speedFile:
-	speeds = speedFile.readlines()
+# with open(DATA_FILE, "r") as speedFile:
+# 	speeds = speedFile.readlines()
 print("Files opened")
 
 def travelTimesByZone():
@@ -403,8 +402,12 @@ def costsByZone (isTAZ):
 		# for i in range(1):
 		if i % 1000 == 0:
 			print("Parsing trips: " + str(i) + " / " + str(len(trips["PID"])))
-		stInd = legMap[trips["PID"][i]][int(trips["Trip_num"][i])-1][0] #facMap[actMap[trips["PID"][i]][trips["OriginAct"][i]]]
-		stInd = legMap[trips["PID"][i]][int(trips["Trip_num"][i])-1][1] #facMap[actMap[trips["PID"][i]][trips["DestinationAct"][i]]]
+		try:
+			stInd = legMap[trips["PID"][i]][int(trips["Trip_num"][i])-1][0] #facMap[actMap[trips["PID"][i]][trips["OriginAct"][i]]]
+			stInd = legMap[trips["PID"][i]][int(trips["Trip_num"][i])-1][1] #facMap[actMap[trips["PID"][i]][trips["DestinationAct"][i]]]
+		except:
+			ignored += 1
+			continue
 		try:
 			modeFactor = MODES.index(trips["realizedTripMode"][i])
 		except:
@@ -836,7 +839,8 @@ def speedByZone(isTAZ):
 		thread.join()
 	
 	for i, zone in enumerate(zones["features"]):
-		zone["properties"]["avgSpeed"] = zone["properties"]["totSpeed"] / zone["properties"]["numVals"]
+		if zone["properties"]["numVals"] > 0:
+			zone["properties"]["avgSpeed"] = zone["properties"]["totSpeed"] / zone["properties"]["numVals"]
 	with open (OUTPUT_FOLDER+"/speedByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 		json.dump(zones, out, allow_nan=True)
 def VMTByZone (isTAZ):
@@ -1177,7 +1181,7 @@ def occupancyByZone(isTAZ):
 	with open (OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 		json.dump(zones, out, allow_nan=True)
 def timeDelayByZone(isTAZ):
-	global paths, population, links, nodes
+	# global paths, population, links, nodes
 	def processNodes (**kwargs):
 		'''kwargs: polys, nodes, st, end'''
 		nodes = kwargs.get("nodes")
@@ -1188,7 +1192,7 @@ def timeDelayByZone(isTAZ):
 		nMap = [0 for i in range(100000)]
 		for i in range(st, end):
 			# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
-			pos = geo.Point([nodes["x"][i], nodes["y"][i]])
+			pos = geo.Point([nodes["y"][i], nodes["x"][i]])
 			for i, poly in enumerate(polys):
 				if pos.within(poly):
 					nMap[int(nodes["NodeId"][i])] = i
@@ -1260,8 +1264,11 @@ def timeDelayByZone(isTAZ):
 			incomeFactor = 0  #max((income-1) // INCOME_SEP, 0)
 			inds = []
 			if isTAZ:
-				inds.append(modeFactor * math.ceil(24 * 60 * 60 / TIME_SEP) * math.ceil(200000 / INCOME_SEP) * len(polys) + timeFactor * math.ceil(200000 / INCOME_SEP) * len(polys) + incomeFactor * len(polys) + origin)
-				inds.append(modeFactor * math.ceil(24 * 60 * 60 / TIME_SEP) * math.ceil(200000 / INCOME_SEP) * len(polys) + timeFactor * math.ceil(200000 / INCOME_SEP) * len(polys) + incomeFactor * len(polys) + destination)
+				mFactor = modeFactor * math.ceil(24 * 60 * 60 / TIME_SEP) * math.ceil(200000 / INCOME_SEP) * len(polys)
+				tFactor = timeFactor * math.ceil(200000 / INCOME_SEP) * len(polys)
+				iFactor = incomeFactor * len(polys)
+				inds.append(mFactor + tFactor + iFactor + origin)
+				inds.append(mFactor + tFactor + iFactor + destination)
 			else:
 				inds.append(modeFactor * (len(polys)+1) * len(polys) + origin * len(polys) + origin)
 				inds.append(modeFactor * (len(polys)+1) * len(polys) + origin * len(polys) + destination)
@@ -1339,7 +1346,7 @@ def timeDelayByZone(isTAZ):
 		for i, num in enumerate(thread.out):
 			if num > 0:
 				nodeMap[i] = num
-
+	# print (nodeMap)
 	popMap = {}
 	for i in range(len(population["PID"])):
 		popMap[population["PID"][i]] = int(population["income"][i])
@@ -1808,28 +1815,23 @@ def followPeople():
 # print ("Data parsed")
 
 
-travelTimesByZone()
-costsByZone(True)
-costsByZone(False)
-modeShareByZone(True)
-modeShareByZone(False)
-speedByZone(True)
-speedByZone(False)
-VMTByZone(True)
-VMTByZone(False)
-occupancyByZone(True)
-occupancyByZone(False)
+# travelTimesByZone()
+# costsByZone(True)
+# modeShareByZone(True)
+# speedByZone(True)
+# VMTByZone(True)
+# occupancyByZone(True)
 timeDelayByZone(True)
-timeDelayByZone(False)
-tripDensityByZone(True)
-tripDensityByZone(False)
-heatMap()
+# tripDensityByZone(True)
+# heatMap()
 # tripsByTime()
 # followPeople()
 # print(activities)
-# scenario = "sf_light-100k"
+# scenario = "sioux_faux-15k"
 # with open("simul_ids.txt", "w") as file:
-# 	file.write(str(database.get_simul_by_scenario(scenario)))
+# 	out = database.get_simul_by_scenario(scenario)
+# 	for i in range(len(out["simulation_id"])):
+# 		file.write(str(out["simulation_id"][i]) + "\t" + str(out["tag"][i]) + "\n")
 # with open("scenarios.txt", "w") as file:
 # 	df = database.load_simulation_df()
 # 	file.write(str(df["simulation_id"])  + str(df["scenario"]))

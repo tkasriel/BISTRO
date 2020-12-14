@@ -1,0 +1,23 @@
+0       44402ee0-7cb8-11ea-a911-063f0fd82f9f
+1       6a9bfb90-7cc3-11ea-a911-063f0fd82f9f
+2       63b65d06-7cb5-11ea-a911-063f0fd82f9f
+3       c6291868-7cd1-11ea-a911-063f0fd82f9f
+4       549b8db0-7caf-11ea-a911-063f0fd82f9f
+                        ...                 
+1504    2cdfca9a-2833-11eb-a514-9801a798306b
+1505    3f747e74-e2c6-11ea-ab33-9801a798306b
+1506    5ae2266c-9d5b-11ea-86be-acde48001122
+1507    790458ce-adb2-11ea-9534-063f0fd82f9f
+1508    db21069e-d19b-11ea-bfff-faffc250aee5
+Name: simulation_id, Length: 1509, dtype: object0       sioux_faux-15k
+1       sioux_faux-15k
+2       sioux_faux-15k
+3       sioux_faux-15k
+4       sioux_faux-15k
+             ...      
+1504     sf_light-100k
+1505      sf_light-50k
+1506    sioux_faux-15k
+1507    sioux_faux-15k
+1508      sf_light-50k
+Name: scenario, Length: 1509, dtype: object
