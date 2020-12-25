@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath("/Users/git/BISTRO_Dashboard/BISTRO_Dashboard"))
 from db_loader import BistroDB
 
 LINK_INFO = "../input_files/link_info.csv" #Note: file is .../competition/link_stats.csv
-LINK_STATS = "../input_files/link_stats.csv" #Note: file is .../competition/viz/link_stats.csvs
+LINK_STATS = "../input_files/link_stats.csv" #Note: file is .../competition/viz/link_stats.csv
 SIMUL_ID = "44402ee0-7cb8-11ea-a911-063f0fd82f9f" #Simulation ID doesn't matter so long as it's from the correct scenario
 
 def loadDB (simulation_id):
