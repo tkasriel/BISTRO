@@ -121,18 +121,18 @@ class processingThread (threading.Thread):
 
 # While this makes one individual visualization much slower, it means that I can run all of them much faster (each can be disabled if you don't want to waste time grabbing useless tables)
 (database, scenario, simulation_id) = loadDB(SIMUL_ID)
-# legs = loadLegs(database, simulation_id)
+legs = loadLegs(database, simulation_id)
 # leg_link = database.load_leg_links(simulation_id)
 links = loadLinks(database, scenario)
 trips = loadTrips(database, simulation_id)
 # person = database.load_person(scenario)
-# population = loadPopulation(database, scenario)
+population = loadPopulation(database, scenario)
 # vehicles = loadVehicles(database, scenario)
 activities = loadAct(database, scenario)
 # facilities = loadFacilities(database, scenario)
 # vehicleTypes = loadVehicleTypes(database, scenario)
 # paths = loadPaths(database, simulation_id, scenario)
-# nodes = loadNodes(database, scenario)
+nodes = loadNodes(database, scenario)
 print("Table queries finished")
 
 with open(NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
@@ -312,7 +312,7 @@ def costsByZone (isTAZ):
 						zones["features"][index]["properties"]["mode"] = MODES[o]
 						zones["features"][index]["properties"]["ind"] = index
 						zones["features"][index]["properties"]["income"] = ( str(inc * INCOME_SEP) if inc == 0 else str(inc * INCOME_SEP + 1) ) + "-" + str((inc+1) * INCOME_SEP)
-						zones["features"][index]["properties"]["time"] = str(t) + ":00:00"
+						time = "%d:%02d:%02d" %(t // 3600, (t // 60) % 60, t % 60)
 						index += 1
 						if index % 1000 == 0:
 							print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(200000 / INCOME_SEP) * math.ceil(24 * 60 * 60 / TIME_SEP) * len(MODES) * len(polys)))
@@ -1810,10 +1810,12 @@ def followPeople():
 		else:
 			tempMap[pid] = 1
 	followedPIDs = []
+	# Create output array. Currently just taking the first 100 PIDs. Could maybe later use 100 PIDs with the most trips? That's what tempMap is for, after all
 	for key in tempMap.keys():
 		if len(followedPIDs) < 100:
 			followedPIDs.append(key)
 			out[key] = [[] for i in range(24*6)]
+	
 	linkMap = processLinks(links)
 	actMap = {}
 	threads = []
@@ -1846,8 +1848,10 @@ def followPeople():
 						str(linkMap[actMap[pid][destinationAct]][1][0]),
 						str(linkMap[actMap[pid][destinationAct]][1][1]), 
 						str(formattedEndTime)]
-		out[pid][int(max(stTime // 600, 24*6-1))] = outputLineSt
-		out[pid][int(max(endTime // 600, 24*6-1))] = outputLineEnd
+		# out[pid][stTime // 600] = outputLineSt
+		# out[pid][endTime // 600] = outputLineEnd
+		out[pid][int(min(stTime // 600, 24*6-1))] = outputLineSt
+		out[pid][int(min(endTime // 600, 24*6-1))] = outputLineEnd
 	print(out)
 	with open (OUTPUT_FOLDER+"/followPerson.csv", "w") as outFile:
 		outFile.write("PID,Latitude,Longitude,time\n")
