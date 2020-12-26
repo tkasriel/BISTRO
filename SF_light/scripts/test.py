@@ -1409,8 +1409,6 @@ def tripDensityByZone(isTAZ):
 	def processLegs (**kwargs):
 		'''kwargs: legs, nodeMap, linkMap, stL, endL'''
 
-		# Associate 
-
 		stL = kwargs.get("stL")
 		endL = kwargs.get("endL")
 		legs = kwargs.get("legs")
@@ -1420,13 +1418,10 @@ def tripDensityByZone(isTAZ):
 		ignored = 0
 		for i in range(stL, endL):
 			threadLock.acquire() # It seems like pandas dataframe (maybe numpy array?) don't support multi-threaded processes
-			try: 
-				pid = legs["PID"][i]
-				leg_links = legs["LinkId"][i]
-				legID = legs["Leg_ID"][i]
-			except:
-				ignored += 1
-				continue
+			pid = legs["PID"][i]
+			leg_links = legs["LinkId"][i]
+			legID = legs["Leg_ID"][i]
+			tripId = int(legs["Trip_ID"][i])
 			threadLock.release()
 			if not (pid in list(legMap.keys())):
 				legMap[pid] = []
@@ -1445,10 +1440,10 @@ def tripDensityByZone(isTAZ):
 				ignored+=1
 			stInd = nodeMap[st]
 			endInd = nodeMap[end]
-			if int(legID) == 1:
-				legMap[pid].append([stInd, 0])
-			else:
+			if tripId >= len(legMap[pid]):
 				legMap[pid].append([stInd, endInd])
+			else:
+				legMap[pid][tripId-1][1] = endInd
 		return [legMap, ignored]
 	def processTrips (**kwargs):
 		'''kwargs: trips, legMap, st, end'''
@@ -1570,6 +1565,7 @@ def tripDensityByZone(isTAZ):
 			else:
 				legMap[legKey] = thread.out[0][legKey]
 		ignored += thread.out[1]
+	print (legMap)
 
 	threads = []
 	for i in range(NUM_THREADS):
