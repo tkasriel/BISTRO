@@ -126,9 +126,9 @@ legs = loadLegs(database, simulation_id)
 links = loadLinks(database, scenario)
 trips = loadTrips(database, simulation_id)
 # person = database.load_person(scenario)
-population = loadPopulation(database, scenario)
+# population = loadPopulation(database, scenario)
 # vehicles = loadVehicles(database, scenario)
-activities = loadAct(database, scenario)
+# activities = loadAct(database, scenario)
 # facilities = loadFacilities(database, scenario)
 # vehicleTypes = loadVehicleTypes(database, scenario)
 # paths = loadPaths(database, simulation_id, scenario)
@@ -275,7 +275,7 @@ def travelTimesByZone(isTAZ):
 			poly["properties"]["avgTime"] = round((poly["properties"]["ttotTime"] + poly["properties"]["ftotTime"]) / (poly["properties"]["tnumNodes"] + poly["properties"]["fnumNodes"]) * 10) / 10
 	with open (OUTPUT_FOLDER+"/travelTimes.json", "w") as out:
 		json.dump(zones, out, allow_nan=True)
-def costsByZone (isTAZ):
+def costsByZone (isTAZ, useStartPoints=True):
 	global trips, links, population, legs, nodes
 	print ("Creating visual: costsByZone. IsTAZ = " + str(isTAZ))
 	polys = []
@@ -312,7 +312,9 @@ def costsByZone (isTAZ):
 						zones["features"][index]["properties"]["mode"] = MODES[o]
 						zones["features"][index]["properties"]["ind"] = index
 						zones["features"][index]["properties"]["income"] = ( str(inc * INCOME_SEP) if inc == 0 else str(inc * INCOME_SEP + 1) ) + "-" + str((inc+1) * INCOME_SEP)
-						time = "%d:%02d:%02d" %(t // 3600, (t // 60) % 60, t % 60)
+						timeSeconds = t * TIME_SEP
+						formatTime = "%d:%02d:%02d" %(timeSeconds // 3600, (timeSeconds // 60) % 60, timeSeconds % 60)
+						zones["features"][index]["properties"]["time"] = formatTime
 						index += 1
 						if index % 1000 == 0:
 							print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(200000 / INCOME_SEP) * math.ceil(24 * 60 * 60 / TIME_SEP) * len(MODES) * len(polys)))
@@ -346,23 +348,6 @@ def costsByZone (isTAZ):
 	popMap = {}
 	for i in range(len(population["PID"])):
 		popMap[population["PID"][i]] = int(population["income"][i])
-
-	# # actMap = {} # PID + AcID --> FID
-	# # for i in range(len(acts["PID"])):
-	# # 	pid = acts["PID"][i]
-	# # 	if not (pid in list(actMap.keys())):
-	# # 		actMap[pid] = []
-	# # 	actMap[pid].append(acts["FID"][i])
-	# # facMap = {} #FID --> polyInd
-	# # for i in range(len(facilities["FID"])):
-	# # 	if i % 1000 == 0:
-	# # 		print ("Parsing facilities: " + str(i) + " / " + str(len(facilities["FID"])))
-	# # 	node = int(facilities["NodeID"][i])
-	# # 	pt = geo.Point(nodeMap[node])
-	# # 	for j, poly in enumerate(polys):
-	# # 		if pt.within(poly):
-	# # 			facMap[facilities["FID"][i]] = j
-	# # 			break
 
 	legMap = {} # {PID: [tripNum:[st, end]]}
 	ignored = 0
@@ -410,16 +395,10 @@ def costsByZone (isTAZ):
 	ignored = 0
 	ignored_modes = []
 	for i in range(len(trips["PID"])):
-		# for i in range(1):
 		if i % 1000 == 0:
 			print("Parsing trips: " + str(i) + " / " + str(len(trips["PID"])))
-		# try:
-		stInd = legMap[trips["PID"][i]][int(trips["Trip_ID"][i])-1][0] #facMap[actMap[trips["PID"][i]][trips["OriginAct"][i]]]
-		endInd = legMap[trips["PID"][i]][int(trips["Trip_ID"][i])-1][1] #facMap[actMap[trips["PID"][i]][trips["DestinationAct"][i]]]
-		# except Exception as e:
-		# 	ignored += 1
-		# 	print (e.message)
-		# 	continue
+		stInd = legMap[trips["PID"][i]][int(trips["Trip_ID"][i])-1][0] 
+		endInd = legMap[trips["PID"][i]][int(trips["Trip_ID"][i])-1][1]
 		try:
 			modeFactor = MODES.index(trips["realizedTripMode"][i])
 		except:
@@ -434,14 +413,26 @@ def costsByZone (isTAZ):
 			time = (int(trips["End_time"][i]) + int(trips["Start_time"][i])) / 2
 			wageFactor = max((wage-1) // INCOME_SEP, 0)
 			timeFactor = max((time-1) // TIME_SEP, 0)
-			ind = int(timeFactor * math.ceil(200000 / INCOME_SEP) * len(MODES) * len(polys) + wageFactor * len(MODES) * len(polys) + modeFactor * len(polys) + stInd)
-			all_modeInd = int(timeFactor * math.ceil(200000 / INCOME_SEP) * len(MODES) * len(polys) + wageFactor * len(MODES) * len(polys) + stInd)
+			timeIndex = timeFactor * math.ceil(200000 / INCOME_SEP) * len(MODES) * len(polys)
+			wageIndex = wageFactor * len(MODES) * len(polys)
+			modeIndex = modeFactor * len(polys)
+			relevantIndex = 0
+			if useStartPoints:
+				relevantIndex = stInd
+			else:
+				relevantIndex = endInd
+			ind = int(timeIndex + wageIndex + modeIndex + relevantIndex)
+			all_modeInd = int(timeIndex + wageIndex + relevantIndex)
 			inds = [ind, all_modeInd]
 		else:
-			ind = modeFactor * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + stInd
-			all_modeInd = (endInd+1) * len(polys) + stInd
-			all_fromInd = modeFactor * (len(polys)+1) * len(polys) + stInd
-			all_allInd = stInd 
+			if useStartPoints:
+				relevantIndex = stInd
+			else:
+				relevantIndex = endInd
+			ind = modeFactor * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + relevantIndex
+			all_modeInd = (endInd+1) * len(polys) + relevantIndex
+			all_fromInd = modeFactor * (len(polys)+1) * len(polys) + relevantIndex
+			all_allInd = relevantIndex
 			inds = [ind, all_modeInd, all_fromInd, all_allInd]
 		# print("Start: " + str(stInd) + ", End: " + str(endInd) + " --> " + str(ind))
 		cost = (int(trips["fuelCost"][i]) + int(trips["Toll"][i])) if int(trips["Fare"][i]) == 0 else int(trips["Fare"][i])
@@ -1472,24 +1463,28 @@ def tripDensityByZone(isTAZ):
 			stTime = trips["Start_time"][i]
 			endTime = trips["End_time"][i]
 			threadLock.release()
-			stInd = int(legMap[str(pid)][int(tid)-1][0]) #facMap[actMap[trips["PID"][i]][trips["OriginAct"][i]]]
-			endInd = int(legMap[str(pid)][int(tid)-1][1]) #facMap[actMap[trips["PID"][i]][trips["DestinationAct"][i]]]
+			stInd = int(legMap[str(pid)][int(tid)-1][0])
+			endInd = int(legMap[str(pid)][int(tid)-1][1])
 			time = min((stTime + endTime) // 2, 24 * 60 * 60)
 			timeFactor = int(max((time-1) // TIME_SEP, 0))
-			startZoneInd = 0
-			endZoneInd = 0
 			if isTAZ:
-				startZoneInd = stInd
-				endZoneInd = endInd
+				originFactor = stInd * len(polys)
+				startZoneInd = originFactor + stInd
+				endZoneInd = originFactor + endInd
+				threadLock.acquire()
+				zones["features"][stInd]["properties"]["Paths starting here"] += 1 # Account for "all"
+				zones["features"][endInd]["properties"]["Paths ending here"] += 1
+				zones["features"][stInd]["properties"]["Total paths"] += 1
+				zones["features"][endInd]["properties"]["Total paths"] += 1
+				threadLock.release()
 			else:
 				startZoneInd = timeFactor * len(polys) + stInd
 				endZoneInd = timeFactor * len(polys) + endInd
 			threadLock.acquire()
-			# try:
 			zones["features"][startZoneInd]["properties"]["Paths starting here"] += 1
 			zones["features"][endZoneInd]["properties"]["Paths ending here"] += 1
-			# except:
-			# 	pass
+			zones["features"][startZoneInd]["properties"]["Total paths"] += 1
+			zones["features"][endZoneInd]["properties"]["Total paths"] += 1
 			threadLock.release()
 		return None
 			
@@ -1508,12 +1503,26 @@ def tripDensityByZone(isTAZ):
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 		poly["properties"]["Paths starting here"] = 0
 		poly["properties"]["Paths ending here"] = 0
+		poly["properties"]["Total paths"] = 0
+		poly["properties"]["name"] = poly["properties"]["TAZCE10"]
 		poly["properties"]["ind"] = i
-		if not isTAZ:
+		if isTAZ:
+			poly["properties"]["origin"] = "all"
+		else:
 			poly["properties"]["time"] = "0:00:00"
 
 	index = len(zones["features"])
-	if not isTAZ:
+	if isTAZ:
+		for origin in range(1, len(polys)+1):
+			for destination in range(len(polys)):
+				poly = zones["features"][destination]
+				zones["features"].append(copy.deepcopy(poly))
+				zones["features"][index]["properties"]["ind"] = index
+				zones["features"][index]["properties"]["origin"] = str(int(zones["features"][origin-1]["properties"]["name"]))
+				index += 1
+				if index % 1000 == 0:
+					print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(24 * 60 * 60 / TIME_SEP) * len(polys)))
+	else:
 		for t in range(math.ceil(24 * 60 * 60 / TIME_SEP)):
 			if t == 0:
 				continue
@@ -1848,8 +1857,6 @@ def followPeople():
 						str(linkMap[actMap[pid][destinationAct]][1][0]),
 						str(linkMap[actMap[pid][destinationAct]][1][1]), 
 						str(formattedEndTime)]
-		# out[pid][stTime // 600] = outputLineSt
-		# out[pid][endTime // 600] = outputLineEnd
 		out[pid][int(min(stTime // 600, 24*6-1))] = outputLineSt
 		out[pid][int(min(endTime // 600, 24*6-1))] = outputLineEnd
 	print(out)
@@ -1866,15 +1873,15 @@ def followPeople():
 
 
 # travelTimesByZone(True)
-# costsByZone(True)
+# costsByZone(True, False)
 # modeShareByZone(True)
 # speedByZone(True)
 # VMTByZone(True)
 # occupancyByZone(True)
 # timeDelayByZone(True)
 # tripsByTime()
-followPeople()
-# tripDensityByZone(True)
+# followPeople()
+tripDensityByZone(True)
 # heatMap()
 # print(activities)
 # scenario = "sioux_faux-15k"
