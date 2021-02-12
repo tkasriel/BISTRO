@@ -1824,7 +1824,7 @@ try:
 	nodes = loadNodes(database, scenario)
 except:
 	print ("=====THE DATABASE IS MISSING REQUIRED TABLES FOR THIS SIMULATION ID. SOME VISUALIZATIONS WILL BREAK=====")
-	inp = str(raw_input("CONTINUE? (y/n): "))
+	inp = str(input("CONTINUE? (y/n): "))
 	if (inp != "y"):
 		sys.exit()
 print("Table queries finished")
