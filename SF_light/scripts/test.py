@@ -5,9 +5,10 @@ TAZ_ZONE_FILE = "../input_files/shapefiles/sioux_falls/shape.json"
 MODES = "walk, bus, bike, walk_transit, drive_transit, ridehail_transit, ride_hail, ridehail_pooled, car".split(", ")
 MODE_GROUPS = "active, car, ridehail, transit".split(", ") #pedestrian, car, ridehail, public transport
 MODE_GROUP_DICT = {"walk": 0, "bike": 0, "walk_transit": 3, "drive_transit": 3, "ridehail_transit": 3, "ride_hail": 2, "ridehail_pooled":2, "car":1, "bus": 3}
-SIMUL_ID = "32cfbb84-39ce-11eb-9ec7-9801a798306b"
+SIMUL_ID = "613dfaba-6a36-11eb-a978-06b502d4a7f7"
 # 32cfbb84-39ce-11eb-9ec7-9801a798306b : cordon sioux-faux
-#
+# 01729e42-41cd-11eb-94f5-9801a798306b : per-mile sioux-faux
+# 613dfaba-6a36-11eb-a978-06b502d4a7f7 : free-form cordon sioux-faux
 TIME_SEP = 14400 # in seconds
 INCOME_SEP = 50000 # $0 - $200 000
 NUM_THREADS = 4
@@ -68,20 +69,7 @@ def loadPaths(db, simulation_id, scenario):
 	print("paths loaded")
 	return paths
 def loadTrips (db, simulation_id):
-	print("Loading trips...")
-
-	# f = open("../input_files/trips.csv", "r")
-	# trips = {}
-	# vals = []
-	# for i, line in enumerate(f.readlines()):
-	# 	l = line.split(",")
-	# 	for j, val in enumerate(l):
-	# 		if i == 0:
-	# 			trips[val] = []
-	# 			vals.append(val)
-	# 		else:
-	# 			trips[vals[j]].append(val)
-	
+	print("Loading trips...")	
 	trips = db.load_trips(simulation_id)
 	print("trips loaded")
 	return trips
@@ -118,31 +106,6 @@ class processingThread (threading.Thread):
 		print(self.name + ": Starting process")
 		self.out = self.func(**self.kwargs)
 		print(self.name + ": Process finished")
-
-# While this makes one individual visualization much slower, it means that I can run all of them much faster (each can be disabled if you don't want to waste time grabbing useless tables)
-(database, scenario, simulation_id) = loadDB(SIMUL_ID)
-legs = loadLegs(database, simulation_id)
-# leg_link = database.load_leg_links(simulation_id)
-links = loadLinks(database, scenario)
-trips = loadTrips(database, simulation_id)
-# person = database.load_person(scenario)
-# population = loadPopulation(database, scenario)
-# vehicles = loadVehicles(database, scenario)
-# activities = loadAct(database, scenario)
-# facilities = loadFacilities(database, scenario)
-# vehicleTypes = loadVehicleTypes(database, scenario)
-# paths = loadPaths(database, simulation_id, scenario)
-nodes = loadNodes(database, scenario)
-print("Table queries finished")
-
-with open(NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
-	neighborZones = json.load(neighborZoneFile)
-with open(TAZ_ZONE_FILE, "r") as TAZZoneFile:
-	TAZZones = json.load(TAZZoneFile)
-# with open(DATA_FILE, "r") as speedFile:
-# 	speeds = speedFile.readlines()
-print("Files opened")
-
 def travelTimesByZone(isTAZ):
 	global legs, links, zones, nodes
 	print ("Creating visual: travelTimesByZone")
@@ -154,24 +117,24 @@ def travelTimesByZone(isTAZ):
 		zones = copy.deepcopy(neighborZones)
 	polys = []
 	for i, poly in enumerate(zones["features"]):
-		# print(poly["geometry"]["coordinates"][0])
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
-		poly["properties"]["focusedNode"] = "all"
-		poly["properties"]["mode"] = MODES[0]
+		poly["properties"]["origin"] = "all"
+		poly["properties"]["mode"] = MODE_GROUPS[0]
 		poly["properties"]["ttotTime"] = 0
 		poly["properties"]["tnumNodes"] = 0
 		poly["properties"]["avgTimeTo"] = None
 		poly["properties"]["ftotTime"] = 0
 		poly["properties"]["fnumNodes"] = 0
+		poly["properties"]["name"] = poly["properties"]["TAZCE10"]
 		poly["properties"]["avgTimeFrom"] = None
 		poly["properties"]["avgTime"] = None
 		poly["properties"]["ind"] = i
-		poly["properties"]["time"] = 1
+		poly["properties"]["time"] = "0:00:00"
 
 	#Duplicate map for every node
 	index = len(zones["features"])
 	for t in range(math.ceil(24 * 60 * 60 / TIME_SEP)+1):
-		for o in range(len(MODES)):
+		for o in range(len(MODE_GROUPS)):
 			for i in range(len(polys)+1):
 				if t == 0 and o == 0 and i == 0:
 					continue
@@ -179,12 +142,13 @@ def travelTimesByZone(isTAZ):
 					poly = zones["features"][j]
 					zones["features"].append(copy.deepcopy(poly))
 					if i == 0:
-						zones["features"][index]["properties"]["focusedNode"] = "all"
+						zones["features"][index]["properties"]["origin"] = "all"
 					else:
-						zones["features"][index]["properties"]["focusedNode"] = zones["features"][i-1]["properties"]["name"]
-					zones["features"][index]["properties"]["mode"] = MODES[o]
+						zones["features"][index]["properties"]["origin"] = zones["features"][i-1]["properties"]["name"]
+					zones["features"][index]["properties"]["mode"] = MODE_GROUPS[o]
 					zones["features"][index]["properties"]["ind"] = index
-					zones["features"][index]["properties"]["time"] = t+1
+					timeSeconds = (t+1) * TIME_SEP
+					zones["features"][index]["properties"]["time"] = "%d:%02d:%02d" %(timeSeconds // 3600, (timeSeconds // 60) % 60, timeSeconds % 60)
 					index += 1
 					if index % 1000 == 0:
 						print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys) * len(polys) * len(MODES) * math.ceil(24 * 60 * 60 / TIME_SEP)))
@@ -236,27 +200,26 @@ def travelTimesByZone(isTAZ):
 		# modeFactor = 3
 
 		try:
-			modeFactor = MODES.index(legs["Mode"][i])
+			modeFactor = MODE_GROUP_DICT[legs["Mode"][i]]
 		except:
 			ignored+=1
 			if not (legs["Mode"][i] in ignored_modes):
 				ignored_modes.append(legs["Mode"][i])
 			continue
 		timeFactor = ((int(legs["End_time"][i]) + int(legs["Start_time"][i])) // (2 * TIME_SEP))
-		ind = timeFactor * len(MODES) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + stInd
-		all_modeInd = timeFactor * len(MODES) * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + stInd
-		all_fromInd = timeFactor * len(MODES) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + stInd
-		all_allInd = timeFactor * len(MODES) * (len(polys)+1) * len(polys) + stInd 
+		ind = timeFactor * len(MODE_GROUPS) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + stInd
+		all_modeInd = timeFactor * len(MODE_GROUPS) * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + stInd
+		all_fromInd = timeFactor * len(MODE_GROUPS) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + stInd
+		all_allInd = timeFactor * len(MODE_GROUPS) * (len(polys)+1) * len(polys) + stInd 
 		inds = [ind, all_modeInd, all_fromInd, all_allInd]
-		# print("Start: " + str(stInd) + ", End: " + str(endInd) + " --> " + str(ind))
 		time = int(legs["End_time"][i]) - int(legs["Start_time"][i])
 		for o, index in enumerate(inds):
 			zones["features"][index]["properties"]["ttotTime"] += time
 			zones["features"][index]["properties"]["tnumNodes"] += 1
-		ind = timeFactor * len(MODES) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + (stInd+1) * len(polys) + endInd
-		all_modeInd = timeFactor * len(MODES) * (len(polys)+1) * len(polys) + (stInd+1) * len(polys) + endInd
-		all_fromInd = timeFactor * len(MODES) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + endInd
-		all_allInd = timeFactor * len(MODES) * (len(polys)+1) * len(polys) + endInd 
+		ind = timeFactor * len(MODE_GROUPS) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + (stInd+1) * len(polys) + endInd
+		all_modeInd = timeFactor * len(MODE_GROUPS) * (len(polys)+1) * len(polys) + (stInd+1) * len(polys) + endInd
+		all_fromInd = timeFactor * len(MODE_GROUPS) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + endInd
+		all_allInd = timeFactor * len(MODE_GROUPS) * (len(polys)+1) * len(polys) + endInd 
 		inds = [ind, all_modeInd, all_fromInd, all_allInd]
 		for o, index in enumerate(inds):
 			zones["features"][index]["properties"]["ftotTime"] += time
@@ -265,6 +228,8 @@ def travelTimesByZone(isTAZ):
 	print ("Legs parsed: " + str(len(legs["PID"]) - ignored))
 	print("Legs ignored: " + str(ignored))
 	print ("Modes ignored: " + ", ".join(ignored_modes))
+	if ignored * 2 >= len(legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE LEGS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
+		return 0
 
 	for i, poly in enumerate(zones["features"]):
 		if poly["properties"]["tnumNodes"] > 0:
@@ -286,7 +251,6 @@ def costsByZone (isTAZ, useStartPoints=True):
 	else:
 		zones = copy.deepcopy(neighborZones)
 	for i, poly in enumerate(zones["features"]):
-		# print(poly["geometry"]["coordinates"][0])
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 		poly["properties"]["mode"] = MODES[0]
 		poly["properties"]["totCost"] = 0
@@ -297,7 +261,7 @@ def costsByZone (isTAZ, useStartPoints=True):
 			poly["properties"]["income"] = "0-" + str(INCOME_SEP)
 			poly["properties"]["time"] = "0:00:00"
 		else:
-			poly["properties"]["focusedNode"] = "all"
+			poly["properties"]["origin"] = "all"
 
 	index = len(zones["features"])
 	if isTAZ:
@@ -327,9 +291,9 @@ def costsByZone (isTAZ, useStartPoints=True):
 					poly = zones["features"][j]
 					zones["features"].append(copy.deepcopy(poly))
 					if i == 0:
-						zones["features"][index]["properties"]["focusedNode"] = "all"
+						zones["features"][index]["properties"]["origin"] = "all"
 					else:
-						zones["features"][index]["properties"]["focusedNode"] = zones["features"][i-1]["properties"]["name"]
+						zones["features"][index]["properties"]["origin"] = zones["features"][i-1]["properties"]["name"]
 					zones["features"][index]["properties"]["mode"] = MODES[o]
 					zones["features"][index]["properties"]["ind"] = index
 					# zones["features"][index]["properties"]["income"] = ( str(inc * INCOME_SEP) if inc == 0 else str(inc * INCOME_SEP + 1) ) + "-" + str((inc+1) * INCOME_SEP)
@@ -370,7 +334,6 @@ def costsByZone (isTAZ, useStartPoints=True):
 			else:
 				end = linkMap[int(float(leg_links[-1]))][0]
 		except:
-			# print ("test")
 			ignored+=1
 		stPt = geo.Point(nodeMap[st])
 		endPt = geo.Point(nodeMap[end])
@@ -386,9 +349,10 @@ def costsByZone (isTAZ, useStartPoints=True):
 		else:
 			legMap[pid][int(legs["Trip_ID"][i])-1][1] = endInd
 
-	# print (legMap)
 	print ("Legs parsed: " + str(len(legs["PID"]) - ignored))
 	print ("Legs ignored: " + str(ignored))
+	if ignored * 2 >= len(legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE LEGS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
+		return 0
 
 	
 	#Parse input per trip
@@ -434,7 +398,6 @@ def costsByZone (isTAZ, useStartPoints=True):
 			all_fromInd = modeFactor * (len(polys)+1) * len(polys) + relevantIndex
 			all_allInd = relevantIndex
 			inds = [ind, all_modeInd, all_fromInd, all_allInd]
-		# print("Start: " + str(stInd) + ", End: " + str(endInd) + " --> " + str(ind))
 		cost = (int(trips["fuelCost"][i]) + int(trips["Toll"][i])) if int(trips["Fare"][i]) == 0 else int(trips["Fare"][i])
 		for o, index in enumerate(inds):
 			zones["features"][index]["properties"]["totCost"] += cost
@@ -443,12 +406,15 @@ def costsByZone (isTAZ, useStartPoints=True):
 	print ("Trips parsed: " + str(len(trips["PID"]) - ignored))
 	print ("Trips ignored: " + str(ignored))
 	print ("Modes ignored: " + ", ".join(ignored_modes))
-	
+	if ignored * 2 >= len(legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE TRIPS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
+		return 0
+
+
 	for i, poly in enumerate(zones["features"]):
 		if poly["properties"]["numVals"] > 0:
 			poly["properties"]["avgCost"] = round(poly["properties"]["totCost"] / poly["properties"]["numVals"] * 10) / 10
 	
-	with open (OUTPUT_FOLDER+"/costsByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
+	with open (OUTPUT_FOLDER+"/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 		json.dump(zones, out, allow_nan=True)
 def modeShareByZone(isTAZ):
 	global trips, links, population, legs, nodes
@@ -566,7 +532,6 @@ def modeShareByZone(isTAZ):
 				for j in range(len(MODE_GROUPS)):
 					inds.append(int(j * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + stInd))
 					inds.append(int(j * (len(polys)+1) * len(polys) + stInd))
-		# print("Start: " + str(stInd) + ", End: " + str(endInd) + " --> " + str(ind))
 			threadLock.acquire()
 			for index in inds:
 				zones["features"][index]["properties"][mode] += 1
@@ -587,7 +552,6 @@ def modeShareByZone(isTAZ):
 		zones = copy.deepcopy(neighborZones)
 	polys = []
 	for i, poly in enumerate(zones["features"]):
-		# print(poly["geometry"]["coordinates"][0])
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 		for j, m in enumerate(MODES):
 			poly["properties"][m] = 0
@@ -601,7 +565,7 @@ def modeShareByZone(isTAZ):
 			poly["properties"]["income"] = "0-" + str(INCOME_SEP)
 			poly["properties"]["time"] = "0:00:00"
 		else:
-			poly["properties"]["focusedNode"] = "all"
+			poly["properties"]["origin"] = "all"
 
 	index = len(zones["features"])
 	if isTAZ:
@@ -629,9 +593,9 @@ def modeShareByZone(isTAZ):
 					poly = zones["features"][j]
 					zones["features"].append(copy.deepcopy(poly))
 					if i == 0:
-						zones["features"][index]["properties"]["focusedNode"] = "all"
+						zones["features"][index]["properties"]["origin"] = "all"
 					else:
-						zones["features"][index]["properties"]["focusedNode"] = zones["features"][i-1]["properties"]["name"]
+						zones["features"][index]["properties"]["origin"] = zones["features"][i-1]["properties"]["name"]
 					zones["features"][index]["properties"]["modal_group"] = MODE_GROUPS[M]
 					zones["features"][index]["properties"]["ind"] = index
 					index += 1
@@ -680,6 +644,8 @@ def modeShareByZone(isTAZ):
 
 	print ("Legs parsed: " + str(len(legs["PID"]) - ignored))
 	print ("Legs ignored: " + str(ignored))
+	if ignored * 2 >= len(legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE LEGS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
+		return 0
 
 	#Parse input per trip
 	
@@ -706,6 +672,9 @@ def modeShareByZone(isTAZ):
 	print ("Trips ignored / broken: " + str(ignored))
 	print ("Modes ignored: " + ", ".join(ignored_modes))
 	print ("%i PIDs missing from the legs table. See ../output_files/missingPIDs.csv for the full list" %(missingNum))
+	if ignored * 2 >= len(legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE TRIPS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
+		return 0
+
 
 	for i, poly in enumerate(zones["features"]):
 		totNum = 0
@@ -763,7 +732,6 @@ def speedByZone(isTAZ):
 			else:
 				inds.append(linkFactor * len(polys) + fromInd)
 				inds.append(linkFactor * len(polys) + toInd)
-			# print("Start: " + str(stInd) + ", End: " + str(endInd) + " --> " + str(ind))
 			threadLock.acquire()
 			for index in inds:
 				zones["features"][index]["properties"]["totSpeed"] += speed
@@ -781,7 +749,6 @@ def speedByZone(isTAZ):
 		zones = copy.deepcopy(neighborZones)
 	polys = []
 	for i, poly in enumerate(zones["features"]):
-		# print(poly["geometry"]["coordinates"][0])
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 		poly["properties"]["totSpeed"] = 0
 		poly["properties"]["numVals"] = 0
@@ -885,7 +852,6 @@ def VMTByZone (isTAZ):
 			else:
 				inds.append(linkFactor * len(polys) + fromInd)
 				inds.append(linkFactor * len(polys) + toInd)
-			# print("Start: " + str(stInd) + ", End: " + str(endInd) + " --> " + str(ind))
 			threadLock.acquire()
 			for index in inds:
 				zones["features"][index]["properties"]["VMT"] += volume * length * meterToMile
@@ -901,7 +867,6 @@ def VMTByZone (isTAZ):
 		zones = copy.deepcopy(neighborZones)
 	polys = []
 	for i, poly in enumerate(zones["features"]):
-		# print(poly["geometry"]["coordinates"][0])
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 		poly["properties"]["VMT"] = 0
 		poly["properties"]["ind"] = i
@@ -1034,7 +999,6 @@ def occupancyByZone(isTAZ):
 			vehicleType = vehicleTypes["vehicleTypeId"][i]
 			capacity = max(1, int(vehicleTypes["seatingCapacity"][i]) + int(vehicleTypes["standingRoomCapacity"][i]))
 			out[vehicleType] = capacity
-		# print (vehicleTypes)
 		return out
 	def processData (**kwargs):
 		'''kwargs: paths, pathList, nodeMap, vehicleMap, vehicleTypeMap, st, end'''
@@ -1084,7 +1048,6 @@ def occupancyByZone(isTAZ):
 		zones = copy.deepcopy(neighborZones)
 	polys = []
 	for i, poly in enumerate(zones["features"]):
-		# print(poly["geometry"]["coordinates"][0])
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 		poly["properties"]["totalVehicleOccupancy"] = 0.0
 		poly["properties"]["numVals"] = 0
@@ -1192,8 +1155,6 @@ def timeDelayByZone(isTAZ):
 
 		nMap = [0 for i in range(10000)]
 		for i in range(st, end):
-			print(nodes["NodeId"][i])
-			# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
 			pos = geo.Point([nodes["x"][i], nodes["y"][i]])
 			for j, poly in enumerate(polys):
 				if pos.within(poly):
@@ -1213,7 +1174,6 @@ def timeDelayByZone(isTAZ):
 				path = list(map(lambda x: int(x), paths["path"][i]))
 			except:
 				out.append([None])
-				print ('test')
 				threadLock.release()
 				continue
 			threadLock.release()
@@ -1232,7 +1192,6 @@ def timeDelayByZone(isTAZ):
 					out[-1].append(endL)
 				else:
 					out[-1].append(stL)
-		print (out)
 		return out
 	def processData (**kwargs):
 		'''kwargs: paths, pathList, linkMap, popMap, nodeMap, st, end'''
@@ -1285,14 +1244,13 @@ def timeDelayByZone(isTAZ):
 
 	print ("Creating visual: timeDelayByZone. IsTAZ = " + str(isTAZ))
 	zones = {}
-	print ("Copying zone information..")
+	print ("Copying zone information...")
 	if isTAZ:
 		zones = copy.deepcopy(TAZZones)
 	else:
 		zones = copy.deepcopy(neighborZones)
 	polys = []
 	for i, poly in enumerate(zones["features"]):
-		# print(poly["geometry"]["coordinates"][0])
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 		poly["properties"]["timeDelay"] = None
 		poly["properties"]["mode"] = MODES[0]
@@ -1301,7 +1259,7 @@ def timeDelayByZone(isTAZ):
 			poly["properties"]["time"] = "0:00:00"
 			poly["properties"]["income"] = "0-" + str(INCOME_SEP)
 		else:
-			poly["properties"]["focusedNode"] = "all"
+			poly["properties"]["origin"] = "all"
 
 	index = len(zones["features"])
 	if isTAZ:
@@ -1330,9 +1288,9 @@ def timeDelayByZone(isTAZ):
 					zones["features"].append(copy.deepcopy(poly))
 					zones["features"][index]["properties"]["mode"] = MODES[m]
 					if i == 0:
-						zones["features"][index]["properties"]["focusedNode"] = "all"
+						zones["features"][index]["properties"]["origin"] = "all"
 					else:
-						zones["features"][index]["properties"]["focusedNode"] = zones["features"][i-1]["properties"]["name"]
+						zones["features"][index]["properties"]["origin"] = zones["features"][i-1]["properties"]["name"]
 					zones["features"][index]["properties"]["ind"] = index
 					index += 1
 					if index % 1000 == 0:
@@ -1351,7 +1309,6 @@ def timeDelayByZone(isTAZ):
 		for i, num in enumerate(thread.out):
 			if num > 0:
 				nodeMap[i] = num
-	# print (nodeMap)
 	popMap = {}
 	for i in range(len(population["PID"])):
 		popMap[population["PID"][i]] = int(population["income"][i])
@@ -1494,7 +1451,6 @@ def tripDensityByZone(isTAZ):
 		zones = copy.deepcopy(neighborZones)
 	polys = []
 	for i, poly in enumerate(zones["features"]):
-		# print(poly["geometry"]["coordinates"][0])
 		polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 		poly["properties"]["Paths starting here"] = 0
 		poly["properties"]["Paths ending here"] = 0
@@ -1565,7 +1521,6 @@ def tripDensityByZone(isTAZ):
 			else:
 				legMap[legKey] = thread.out[0][legKey]
 		ignored += thread.out[1]
-	print (legMap)
 
 	threads = []
 	for i in range(NUM_THREADS):
@@ -1598,8 +1553,6 @@ def heatMap():
 		for i in range(st, end):
 			threadLock.acquire()
 			path = paths["path"][i]
-			if i < 10:
-				print(path)
 			stTime = paths["departureTime"][i]
 			endTime = paths["arrivalTime"][i]
 			threadLock.release()
@@ -1619,7 +1572,6 @@ def heatMap():
 			formattedTime = "%02d:%02d:%02d" % (endTime // 3600, (endTime % 3600) // 60, endTime % 60)
 			node = linkMap[str(int(path[-1]))][n]
 			out.append (str(node[0]) + "," + str(node[1]) + "," + formattedTime)
-		print (out[:10])
 		return out
 
 	threadLock = threading.Lock()
@@ -1721,20 +1673,19 @@ def tripsByTime():
 			t = stTime / TIME_SEP
 			timeTaken = endTime - stTime
 			formatTime = "%d:%02d:%02d" %((t * TIME_SEP) // 3600, ((t*TIME_SEP) // 60) % 60, (t * TIME_SEP) % 60)
-			out.append(','.join([str(stInd[0]), str(stInd[1]), str(endInd[0]), str(endInd[1]), formatTime, str(timeTaken)]))
+			out.append(','.join([str(stInd[0]), str(stInd[1]), str(endInd[0]), str(endInd[1]), str(mode), formatTime, str(timeTaken)]))
 		return [out, missingNum]
 	
 	threadLock = threading.Lock()
 
 	print("Creating visual: tripsArcs")
 	out = []
-	out.append("StartLat,StartLong,EndLat,EndLong,Start Time, Time taken")
+	out.append("StartLat,StartLong,EndLat,EndLong,Mode,Start Time,Time taken")
 	linkMap = processLinks(links)
 	legMap = {}
 	threads = []
 	for i in range(NUM_THREADS):
 		size = len(legs["PID"])
-		# print(activities)
 		st = (i * size) // NUM_THREADS
 		end = ((i+1) * size) // NUM_THREADS
 		threads.append(processingThread(i, "leg_thread_" + str(i), processLegs, legs=legs, linkMap=linkMap, stL=st, endL=end))
@@ -1757,7 +1708,7 @@ def tripsByTime():
 		thread.join()
 		out = out + thread.out[0]
 		missing += thread.out[1]
-	print ("%d PIDs missing" %(missing))
+	print ("%d PIDs missing in the leg map. Find the list of missing PIDs at ../output_files/missingPIDs.csv" %(missing))
 	with open (OUTPUT_FOLDER+"/tripsByTime.csv", "w") as outFile:
 		for line in out:
 			outFile.write(line + "\n")
@@ -1781,9 +1732,6 @@ def followPeople():
 			if not (pid in actMap):
 				actMap[pid] = {}
 			actMap[pid][actNum] = linkId
-
-			# print("test")
-		print(actMap)
 		return actMap #ouput: {PID: {actID: linkID}}
 	def processLinks(links):
 		linkMap = {}
@@ -1794,8 +1742,6 @@ def followPeople():
 			toLoc = [links["toLocationX"][i], links["toLocationY"][i]]
 			threadLock.release()
 			linkMap[str(linkId)] = [fromLoc, toLoc]
-		print(linkMap)
-
 		return linkMap
 
 	'''
@@ -1855,7 +1801,6 @@ def followPeople():
 						str(formattedEndTime)]
 		out[pid][int(min(stTime // 600, 24*6-1))] = outputLineSt
 		out[pid][int(min(endTime // 600, 24*6-1))] = outputLineEnd
-	print(out)
 	with open (OUTPUT_FOLDER+"/followPerson.csv", "w") as outFile:
 		outFile.write("PID,Latitude,Longitude,time\n")
 		for time in out:
@@ -1864,30 +1809,44 @@ def followPeople():
 					outFile.write(",".join(person) + "\n") 
 
 
-# speedPerLink(LINK_FILE, DATA_FILE)
-# print ("Data parsed")
+# While this makes one individual visualization much slower, it means that I can run all of them much faster (each can be disabled if you don't want to waste time grabbing useless tables)
+(database, scenario, simulation_id) = loadDB(SIMUL_ID)
+try:
+	legs = loadLegs(database, simulation_id)
+	links = loadLinks(database, scenario)
+	trips = loadTrips(database, simulation_id)
+	person = database.load_person(scenario)
+	population = loadPopulation(database, scenario)
+	vehicles = loadVehicles(database, scenario)
+	activities = loadAct(database, scenario)
+	vehicleTypes = loadVehicleTypes(database, scenario)
+	paths = loadPaths(database, simulation_id, scenario)
+	nodes = loadNodes(database, scenario)
+except:
+	print ("=====THE DATABASE IS MISSING REQUIRED TABLES FOR THIS SIMULATION ID. SOME VISUALIZATIONS WILL BREAK=====")
+	inp = str(raw_input("CONTINUE? (y/n): "))
+	if (inp != "y"):
+		sys.exit()
+print("Table queries finished")
 
+# with open(NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
+# 	neighborZones = json.load(neighborZoneFile)
+with open(TAZ_ZONE_FILE, "r") as TAZZoneFile:
+	TAZZones = json.load(TAZZoneFile)
+# with open(DATA_FILE, "r") as speedFile:
+# 	speeds = speedFile.readlines()
+print("Files opened")
 
-# travelTimesByZone(True)
-# costsByZone(True, False)
-# modeShareByZone(True)
+travelTimesByZone(True)
+costsByZone(True, False)
+costsByZone(True, True)
+modeShareByZone(True)
 # speedByZone(True)
 # VMTByZone(True)
-# occupancyByZone(True)
-# timeDelayByZone(True)
-# tripsByTime()
-# followPeople()
+occupancyByZone(True)
+timeDelayByZone(True)
+tripsByTime()
+followPeople()
 tripDensityByZone(True)
-# heatMap()
-# print(activities)
-# scenario = "sioux_faux-15k"
-# with open ("test.txt", "w") as fileOut:
-# 	for i in range(len(activities["PID"])):
-# 		fileOut.write (str(activities["PID"][i]) + "\n")
-# with open("simul_ids.txt", "w") as file:
-# 	out = database.get_simul_by_scenario(scenario)
-# 	for i in range(len(out["simulation_id"])):
-# 		file.write(str(out["simulation_id"][i]) + "\t" + str(out["tag"][i]) + "\n")
-# with open("scenarios.txt", "w") as file:
-# 	df = database.load_simulation_df()
-# 	file.write(str(df["simulation_id"])  + str(df["scenario"]))
+heatMap()
+#missing: trips, paths, legs
