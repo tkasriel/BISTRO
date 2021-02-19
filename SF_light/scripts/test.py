@@ -1,5 +1,4 @@
 DATA_FILE = "../input_files/sf_light_50k_BAU_link_stats_by_hour.csv"
-OUTPUT_FOLDER = "../output_files/"
 NEIGHBOR_ZONE_FILE = "../input_files/shapefiles/SF_Neighborhoods/shape.json" #SF_Neighborhoods // TAZ_SF
 TAZ_ZONE_FILE = "../input_files/shapefiles/sioux_falls/shape.json"
 MODES = "walk, bus, bike, walk_transit, drive_transit, ridehail_transit, ride_hail, ridehail_pooled, car".split(", ")
@@ -9,11 +8,17 @@ SIMUL_ID = "613dfaba-6a36-11eb-a978-06b502d4a7f7"
 # 32cfbb84-39ce-11eb-9ec7-9801a798306b : cordon sioux-faux
 # 01729e42-41cd-11eb-94f5-9801a798306b : per-mile sioux-faux
 # 613dfaba-6a36-11eb-a978-06b502d4a7f7 : free-form cordon sioux-faux
+OUTPUT_FOLDER = "../output_files/{}".format(SIMUL_ID)
 TIME_SEP = 14400 # in seconds
 INCOME_SEP = 50000 # $0 - $200 000
 NUM_THREADS = 4
 import os, sys, threading, copy, json, math
 sys.path.append(os.path.abspath("/Users/git/BISTRO_Dashboard/BISTRO_Dashboard"))
+try:
+	os.mkdir(OUTPUT_FOLDER) 
+except:
+	#dir already exists
+	pass
 
 from db_loader import BistroDB
 import numpy as np
@@ -353,7 +358,6 @@ def costsByZone (isTAZ, useStartPoints=True):
 	print ("Legs ignored: " + str(ignored))
 	if ignored * 2 >= len(legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE LEGS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
 		return 0
-
 	
 	#Parse input per trip
 	ignored = 0
@@ -558,7 +562,7 @@ def modeShareByZone(isTAZ):
 			poly["properties"][m + "_percentage"] = ""
 		poly["properties"]["modal_group"] = MODE_GROUPS[0]
 		poly["properties"]["modal_count"] = 0
-		poly["properties"]["modal_percentage"] = 0
+		poly["properties"]["modal_percentage"] = "0%"
 		poly["properties"]["modal_percentage_hidden"] = 0
 		poly["properties"]["ind"] = i
 		if isTAZ:
@@ -683,10 +687,9 @@ def modeShareByZone(isTAZ):
 		if totNum == 0:
 			continue
 		for j, m in enumerate(MODES):
-			poly["properties"][m + "_percentage"] = "%i%% "%((poly["properties"][m] / totNum) * 100)
+			poly["properties"][m + "_percentage"] = "%i%%"%((poly["properties"][m] / totNum) * 100)
 		poly["properties"]["modal_percentage"] = "%i%%"%((poly["properties"]["modal_count"] / totNum) * 100)
 		poly["properties"]["modal_percentage_hidden"] = (poly["properties"]["modal_count"] / totNum)
-			
 	with open (OUTPUT_FOLDER+"/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 		json.dump(zones, out, allow_nan=True)
 def speedByZone(isTAZ):
@@ -1837,16 +1840,16 @@ with open(TAZ_ZONE_FILE, "r") as TAZZoneFile:
 # 	speeds = speedFile.readlines()
 print("Files opened")
 
-travelTimesByZone(True)
-costsByZone(True, False)
-costsByZone(True, True)
+# travelTimesByZone(True)
+# costsByZone(True, False)
+# costsByZone(True, True)
 modeShareByZone(True)
 # speedByZone(True)
 # VMTByZone(True)
-occupancyByZone(True)
-timeDelayByZone(True)
-tripsByTime()
-followPeople()
-tripDensityByZone(True)
-heatMap()
+# occupancyByZone(True)
+# timeDelayByZone(True)
+# tripsByTime()
+# followPeople()
+# tripDensityByZone(True)
+# heatMap()
 #missing: trips, paths, legs
