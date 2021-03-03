@@ -1,0 +1,22 @@
+# NOTE: THESE ARE MEANT TO BE FIXED DATA
+# All lines starting with "#" are ignored
+
+# Deprecated
+DATA_PATH: ../input_files/sf_light_50k_BAU_link_stats_by_hour.csv
+
+# GeoJSON files for neighborhood and TAZ zones
+NEIGHBOR_ZONE_PATH: ../input_files/shapefiles/SF_Neighborhoods/shape.json
+TAZ_ZONE_PATH: ../input_files/shapefiles/sioux_falls/shape.json
+
+# Modes and modal groups
+MODES: walk, bus, bike, walk_transit, drive_transit, ridehail_transit, ride_hail, ridehail_pooled, car
+MODE_GROUPS: active, car, ridehail, transit
+MODE_GROUP_DICT: {"walk": 0, "bike": 0, "walk_transit": 3, "drive_transit": 3, "ridehail_transit": 3, "ride_hail": 2, "ridehail_pooled":2, "car":1, "bus": 3}
+
+# Filters will be seperated into factors of the below.
+# Note that it might not do what you want it to do (setting INCOME_SEP to 66666 will create 4 groups instead of 3, for example)
+TIME_SEP: 14400
+INCOME_SEP: 66667
+
+# Number of threads used
+NUM_THREADS: 4

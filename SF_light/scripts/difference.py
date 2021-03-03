@@ -2,12 +2,15 @@
     This script serves to find the difference between corresponding visualizations of two different simulation runs
 '''
 import os, sys, json, copy
-WHITELIST = ["avgCost", "totCost", "walk", "bus", "bike", "walk_transit", "drive_transit", "ridehail_transit", "car", "modal_count",
+WHITELIST = ["avgCost", "totCost", "walk", "bus", "bike", "walk_transit", "drive_transit", "ridehail_transit", "car",
                                     "walk_percentage", "bus_percentage", "bike_percentage", "walk_transit_percentage", "drive_transit_percentage", "ridehail_transit_percentage", "car_percentage", "modal_percentage", "modal_percentage_hidden",
-                                    "totalVehicleOccupancy", "avgVehicleOccupancy"]
-BASE_ID = "613dfaba-6a36-11eb-a978-06b502d4a7f7"
+                                    "totalVehicleOccupancy", "avgVehicleOccupancy",
+                                    "total distance",
+                                    "timeDelay",
+                                    "avgTimeTo", "ttotTime", "avgTimeFrom", "ftotTime", "avgTime"]
+BASE_ID = "f4c0a90c-7802-11eb-947d-06b502d4a7f7"
 COMP_ID = "32cfbb84-39ce-11eb-9ec7-9801a798306b"
-FILE_NAME = "tripDensityByZone_TAZ.json"
+FILE_NAMES = ["costsByZone_end_TAZ.json","costsByZone_Start_TAZ.json","modeShare_TAZ.json","occupancyByZone_TAZ.json","timeDelayByZone_TAZ.json","totalDistance_TAZ.json","travelTimes.json","tripDensityByZone_TAZ.json"]
 OUTPUT_FOLDER = "../output_files/differences/{}::{}".format(BASE_ID, COMP_ID)
 try:
 	os.mkdir(OUTPUT_FOLDER)
@@ -79,11 +82,10 @@ def differenceCSV (csvBase, csvComp):
 baseJson, compJson = ({}, {})
 
 
+for FILE_NAME in FILE_NAMES:
+    with open ("../output_files/{}/{}".format(BASE_ID, FILE_NAME), "r") as inFile:
+        baseJson = json.load(inFile)
 
-with open ("../output_files/{}/{}".format(BASE_ID, FILE_NAME), "r") as inFile:
-    baseJson = json.load(inFile)
-
-with open ("../output_files/{}/{}".format(COMP_ID, FILE_NAME), "r") as inFile:
-    compJson = json.load(inFile)
-
-differenceJson(baseJson, compJson)
+    with open ("../output_files/{}/{}".format(COMP_ID, FILE_NAME), "r") as inFile:
+        compJson = json.load(inFile)
+    differenceJson(baseJson, compJson)
