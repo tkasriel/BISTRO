@@ -1,13 +1,9 @@
 '''
 TODO:
-- fix timeDelay units
-- VMT
 - Add units in label names
-- Redo viz for new simul
 - Wrap-up + summary
 '''
-import os, sys, threading, copy, json, math
-sys.path.append(os.path.abspath("/Users/git/BISTRO_Dashboard/BISTRO_Dashboard")) # Will be removed soon
+import sys, os, threading, copy, json, math
 
 from db_loader import BistroDB
 import numpy as np
@@ -16,6 +12,7 @@ import shapely.geometry as geo
 import processingThread as pt
 
 class Visualization:
+	# These are default values. Modify options.txt instead if possible
 	DATA_FILE = ""
 	NEIGHBOR_ZONE_FILE = ""
 	TAZ_ZONE_FILE = ""
@@ -128,6 +125,8 @@ class Visualization:
 		return nodes
 
 	def loadTables(self):
+		# Load all the tables
+		# All of them (at least the ones we need)
 		(database, scenario, simulation_id) = self.loadDB (self.SIMUL_ID)
 		try:
 			self.legs = self.loadLegs(database, simulation_id)
@@ -141,6 +140,7 @@ class Visualization:
 			self.paths = self.loadPaths(database, simulation_id, scenario)
 			self.nodes = self.loadNodes(database, scenario)
 		except Exception as e:
+			# the simul_id is missing some tables
 			print ("=====THE DATABASE IS MISSING REQUIRED TABLES FOR THIS SIMULATION ID. SOME VISUALIZATIONS WILL BREAK=====")
 			print ("Error information:\n" + str(e))
 			inp = str(input("CONTINUE? (y/n): "))
@@ -148,6 +148,7 @@ class Visualization:
 				sys.exit()
 		print("Table queries finished")
 
+		# IMPORTANT: These need to be in GeoJSON format. I created test_json.py to handle this.
 		with open(Visualization.NEIGHBOR_ZONE_FILE, "r") as neighborZoneFile:
 			self.neighborZones = json.load(neighborZoneFile)
 		with open(Visualization.TAZ_ZONE_FILE, "r") as TAZZoneFile:
@@ -155,6 +156,7 @@ class Visualization:
 		print ("Files loaded")
 
 	def travelTimesByZone(self,isTAZ):
+		# This visual allows to see travel times starting at certain zones
 		print ("Creating visual: travelTimesByZone")
 		zones = {}
 		print ("Copying zone information..")
@@ -163,31 +165,44 @@ class Visualization:
 		else:
 			zones = copy.deepcopy(self.neighborZones)
 		polys = []
+		# We moddel zones as polygons, which we'll then use to match points to zones
+
 		for i, poly in enumerate(zones["features"]):
 			polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
+			# These identify the specific polygon
 			poly["properties"]["origin"] = "all"
+			poly["properties"]["ind"] = i
 			poly["properties"]["mode"] = Visualization.MODE_GROUPS[0]
+			poly["properties"]["name"] = poly["properties"]["TAZCE10"]
+			poly["properties"]["time"] = "0:00:00"
+
+			# These are the values stored by the polygon
 			poly["properties"]["ttotTime"] = 0
 			poly["properties"]["tnumNodes"] = 0
 			poly["properties"]["avgTimeTo"] = None
 			poly["properties"]["ftotTime"] = 0
 			poly["properties"]["fnumNodes"] = 0
-			poly["properties"]["name"] = poly["properties"]["TAZCE10"]
 			poly["properties"]["avgTimeFrom"] = None
 			poly["properties"]["avgTime"] = None
-			poly["properties"]["ind"] = i
-			poly["properties"]["time"] = "0:00:00"
+
+			
 
 		#Duplicate map for every node
 		index = len(zones["features"])
+		# Time filter
 		for t in range(math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)+1):
+			# Origin filter
 			for o in range(len(Visualization.MODE_GROUPS)):
+				# Income filter
 				for i in range(len(polys)+1):
+					# Initial already covered above
 					if t == 0 and o == 0 and i == 0:
 						continue
 					for j in range(len(polys)):
 						poly = zones["features"][j]
 						zones["features"].append(copy.deepcopy(poly))
+						
+						# Set indicators to identify polygon
 						if i == 0:
 							zones["features"][index]["properties"]["origin"] = "all"
 						else:
@@ -199,10 +214,13 @@ class Visualization:
 						index += 1
 						if index % 1000 == 0:
 							print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys) * len(polys) * len(Visualization.MODES) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)))
-		#Create links
+		
+		# Associate [linkID:[nodeID, nodeID]]
 		linkMap = [[] for i in range(100000)]
 		for i in range(len(self.links["LinkId"])):
 			linkMap[int(self.links["LinkId"][i])] = [int(self.links["fromLocationID"][i]), int(self.links["toLocationID"][i])]
+		
+		# Associate [nodeID:[lat,long]
 		nodeMap = [[] for i in range(100000)]
 		for i in range(len(self.nodes["NodeId"])):
 			nodeMap[int(self.nodes["NodeId"][i])] = [self.nodes["x"][i], self.nodes["y"][i]]
@@ -212,11 +230,11 @@ class Visualization:
 		ignored = 0
 		ignored_modes = []
 		for i in range(len(self.legs["PID"])):
-			# for i in range(1):
 			if i % 1000 == 0:
 				print("Parsing legs: " + str(i) + " / " + str(len(self.legs["LinkId"])))
 				pass
 			leg_links = self.legs["LinkId"][i]
+			
 			#Find start and end pt
 			st = 0
 			end = 0
@@ -1253,6 +1271,7 @@ class Visualization:
 				threadLock.release()
 				
 				totalIncome = 0
+				numPassengers = 0
 				if driver in popMap:
 					totalIncome = popMap[driver]
 					numPassengers = len(passengers) + 1
@@ -1261,14 +1280,15 @@ class Visualization:
 				for passenger in passengers:
 					if passenger:
 						totalIncome += popMap[passenger]
-				income = totalIncome / (len(passengers) + 1)
+				income = totalIncome / numPassengers
 				if not pathList[i][0]:
 					continue
 				origin = nodeMap[pathList[i][0]]
 				destination = nodeMap[pathList[i][-1]]
 				expectedTime = 0
+				# TO NOTE: speed is in mph, but length is in meters
 				for link in path:
-					expectedTime += linkMap[int(link)][3] / linkMap[int(link)][2]
+					expectedTime += (0.44704 * linkMap[int(link)][3]) / linkMap[int(link)][2]
 				totalTime = endTime - stTime
 
 				time = min((int(endTime) + int(stTime)) / 2, 24*60*60) # The viz is made for a 24h simulation, but it's actually a 30 hour simulation because that makes sense
