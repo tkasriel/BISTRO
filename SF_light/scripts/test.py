@@ -22,7 +22,7 @@ class Visualization:
 	TIME_SEP = 0
 	INCOME_SEP = 0
 	NUM_THREADS = 0
-	SIMUL_ID = "613dfaba-6a36-11eb-a978-06b502d4a7f7"
+	SIMUL_ID = ""
 	OUTPUT_FOLDER = ""
 	# 32cfbb84-39ce-11eb-9ec7-9801a798306b : cordon sioux-faux
 	# 01729e42-41cd-11eb-94f5-9801a798306b : per-mile sioux-faux
@@ -159,7 +159,7 @@ class Visualization:
 		# This visual allows to see travel times starting at certain zones
 		print ("Creating visual: travelTimesByZone")
 		zones = {}
-		print ("Copying zone information..")
+		# print ("Copying zone information..")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -212,8 +212,9 @@ class Visualization:
 						timeSeconds = (t+1) * Visualization.TIME_SEP
 						zones["features"][index]["properties"]["time"] = "%d:%02d:%02d" %(timeSeconds // 3600, (timeSeconds // 60) % 60, timeSeconds % 60)
 						index += 1
-						if index % 1000 == 0:
-							print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys) * len(polys) * len(Visualization.MODES) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)))
+						# Debug
+						# if index % 1000 == 0:
+						# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys) * len(polys) * len(Visualization.MODES) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)))
 		
 		# Associate [linkID:[nodeID, nodeID]]
 		linkMap = [[] for i in range(100000)]
@@ -230,9 +231,9 @@ class Visualization:
 		ignored = 0
 		ignored_modes = []
 		for i in range(len(self.legs["PID"])):
-			if i % 1000 == 0:
-				print("Parsing legs: " + str(i) + " / " + str(len(self.legs["LinkId"])))
-				pass
+			# debug
+			# if i % 1000 == 0:
+			# 	print("Parsing legs: " + str(i) + " / " + str(len(self.legs["LinkId"])))
 			leg_links = self.legs["LinkId"][i]
 			
 			#Find start and end pt
@@ -271,16 +272,22 @@ class Visualization:
 				if not (self.legs["Mode"][i] in ignored_modes):
 					ignored_modes.append(self.legs["Mode"][i])
 				continue
+			# We need to find the corresponding zone in a 1D array, so we'll need a few factors
 			timeFactor = ((int(self.legs["End_time"][i]) + int(self.legs["Start_time"][i])) // (2 * Visualization.TIME_SEP))
+			
+			# Different indexes
 			ind = timeFactor * len(Visualization.MODE_GROUPS) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + stInd
 			all_modeInd = timeFactor * len(Visualization.MODE_GROUPS) * (len(polys)+1) * len(polys) + (endInd+1) * len(polys) + stInd
 			all_fromInd = timeFactor * len(Visualization.MODE_GROUPS) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + stInd
 			all_allInd = timeFactor * len(Visualization.MODE_GROUPS) * (len(polys)+1) * len(polys) + stInd 
 			inds = [ind, all_modeInd, all_fromInd, all_allInd]
+
 			time = int(self.legs["End_time"][i]) - int(self.legs["Start_time"][i])
 			for o, index in enumerate(inds):
 				zones["features"][index]["properties"]["ttotTime"] += time
 				zones["features"][index]["properties"]["tnumNodes"] += 1
+			
+			# Same as before, but this time calculating time to get anywhere starting from that node
 			ind = timeFactor * len(Visualization.MODE_GROUPS) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + (stInd+1) * len(polys) + endInd
 			all_modeInd = timeFactor * len(Visualization.MODE_GROUPS) * (len(polys)+1) * len(polys) + (stInd+1) * len(polys) + endInd
 			all_fromInd = timeFactor * len(Visualization.MODE_GROUPS) * (len(polys)+1) * len(polys) + modeFactor * (len(polys)+1) * len(polys) + endInd
@@ -289,13 +296,15 @@ class Visualization:
 			for o, index in enumerate(inds):
 				zones["features"][index]["properties"]["ftotTime"] += time
 				zones["features"][index]["properties"]["fnumNodes"] += 1
-			
-		print ("Legs parsed: " + str(len(self.legs["PID"]) - ignored))
-		print("Legs ignored: " + str(ignored))
-		print ("Modes ignored: " + ", ".join(ignored_modes))
+		
+		# Debug
+		# print ("Legs parsed: " + str(len(self.legs["PID"]) - ignored))
+		# print("Legs ignored: " + str(ignored))
+		# print ("Modes ignored: " + ", ".join(ignored_modes))
 		if ignored * 2 >= len(self.legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE LEGS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
 			return 0
 
+		# Round to 0.1
 		for i, poly in enumerate(zones["features"]):
 			if poly["properties"]["tnumNodes"] > 0:
 				poly["properties"]["avgTimeTo"] = round(poly["properties"]["ttotTime"] / poly["properties"]["tnumNodes"] * 10) / 10
@@ -305,11 +314,12 @@ class Visualization:
 				poly["properties"]["avgTime"] = round((poly["properties"]["ttotTime"] + poly["properties"]["ftotTime"]) / (poly["properties"]["tnumNodes"] + poly["properties"]["fnumNodes"]) * 10) / 10
 		with open (Visualization.OUTPUT_FOLDER+"/travelTimes.json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
+		
 	def costsByZone (self, isTAZ, useStartPoints=True):
 		print ("Creating visual: costsByZone. IsTAZ = " + str(isTAZ))
 		polys = []
 		zones = {}
-		print ("Copying zone information..")
+		# print ("Copying zone information..")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -328,6 +338,7 @@ class Visualization:
 				poly["properties"]["origin"] = "all"
 
 		index = len(zones["features"])
+		# Create zones for the filters
 		if isTAZ:
 			for t in range(math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)):
 				for inc in range(math.ceil(200000 / Visualization.INCOME_SEP)):
@@ -336,6 +347,7 @@ class Visualization:
 							continue
 						for j in range(len(polys)):
 							poly = zones["features"][j]
+							# Zone properties
 							zones["features"].append(copy.deepcopy(poly))
 							zones["features"][index]["properties"]["mode"] = Visualization.MODES[o]
 							zones["features"][index]["properties"]["ind"] = index
@@ -344,9 +356,11 @@ class Visualization:
 							formatTime = "%d:%02d:%02d" %(timeSeconds // 3600, (timeSeconds // 60) % 60, timeSeconds % 60)
 							zones["features"][index]["properties"]["time"] = formatTime
 							index += 1
-							if index % 1000 == 0:
-								print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(200000 / Visualization.INCOME_SEP) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(Visualization.MODES) * len(polys)))
+							#debug
+							# if index % 1000 == 0:
+							# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(200000 / Visualization.INCOME_SEP) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(Visualization.MODES) * len(polys)))
 		else:
+			# If going by neighborhood, different filters are used
 			for o in range(len(Visualization.MODES)):
 				for i in range(len(polys)+1):
 					if o == 0 and i == 0:
@@ -366,13 +380,17 @@ class Visualization:
 						if index % 1000 == 0:
 							print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys) * len(polys) * len(Visualization.MODES))) # * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)))
 		
-		#Create links
+		# Associate [linkID:[fromID, toID]]
 		linkMap = [[] for i in range(100000)]
 		for i in range(len(self.links["LinkId"])):
 			linkMap[int(self.links["LinkId"][i])] = [int(self.links["fromLocationID"][i]), int(self.links["toLocationID"][i])]
+		
+		# Associate [nodeID:[long, lat]]
 		nodeMap = [[] for i in range(100000)]
 		for i in range(len(self.nodes["NodeId"])):
 			nodeMap[int(self.nodes["NodeId"][i])] = [self.nodes["x"][i], self.nodes["y"][i]]
+		
+		# Associate {PID: income}
 		popMap = {}
 		for i in range(len(self.population["PID"])):
 			popMap[self.population["PID"][i]] = int(self.population["income"][i])
@@ -412,9 +430,9 @@ class Visualization:
 				legMap[pid].append([stInd, endInd])
 			else:
 				legMap[pid][int(self.legs["Trip_ID"][i])-1][1] = endInd
-
-		print ("Legs parsed: " + str(len(self.legs["PID"]) - ignored))
-		print ("Legs ignored: " + str(ignored))
+		# Debug
+		# print ("Legs parsed: " + str(len(self.legs["PID"]) - ignored))
+		# print ("Legs ignored: " + str(ignored))
 		if ignored * 2 >= len(self.legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE LEGS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
 			return 0
 		
@@ -422,8 +440,9 @@ class Visualization:
 		ignored = 0
 		ignored_modes = []
 		for i in range(len(self.trips["PID"])):
-			if i % 1000 == 0:
-				print("Parsing trips: " + str(i) + " / " + str(len(self.trips["PID"])))
+			# debug
+			# if i % 1000 == 0:
+			# 	print("Parsing trips: " + str(i) + " / " + str(len(self.trips["PID"])))
 			stInd = legMap[self.trips["PID"][i]][int(self.trips["Trip_ID"][i])-1][0] 
 			endInd = legMap[self.trips["PID"][i]][int(self.trips["Trip_ID"][i])-1][1]
 			try:
@@ -436,6 +455,7 @@ class Visualization:
 			
 			inds = []
 			if isTAZ:
+				# Get index for specific filters
 				wage = popMap[self.trips["PID"][i]]
 				time = (int(self.trips["End_time"][i]) + int(self.trips["Start_time"][i])) / 2
 				wageFactor = max((wage-1) // Visualization.INCOME_SEP, 0)
@@ -466,9 +486,10 @@ class Visualization:
 				zones["features"][index]["properties"]["totCost"] += cost
 				zones["features"][index]["properties"]["numVals"] += 1
 
-		print ("Trips parsed: " + str(len(self.trips["PID"]) - ignored))
-		print ("Trips ignored: " + str(ignored))
-		print ("Modes ignored: " + ", ".join(ignored_modes))
+		# Debug
+		# print ("Trips parsed: " + str(len(self.trips["PID"]) - ignored))
+		# print ("Trips ignored: " + str(ignored))
+		# print ("Modes ignored: " + ", ".join(ignored_modes))
 		if ignored * 2 >= len(self.legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE TRIPS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
 			return 0
 
@@ -489,6 +510,7 @@ class Visualization:
 			st = kwargs.get("st")
 			end = kwargs.get("end")
 
+			# Associate [nodeID:[long, lat]]
 			nMap = [0 for i in range(100000)]
 			for i in range(st, end):
 				# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
@@ -505,6 +527,7 @@ class Visualization:
 			legs = kwargs.get("legs")
 			nodeMap = kwargs.get("nodeMap")
 			linkMap = kwargs.get("linkMap")
+			# Associate {PID: [nodeID, nodeID, nodeID...]}
 			legMap = {}
 			ignored = 0
 			for i in range(stL, endL):
@@ -547,9 +570,7 @@ class Visualization:
 			missingNum = 0
 			ignored = 0
 			ignored_modes = []
-
 			for i in range(stP, endP):
-			# for i in range(1):
 				# if i % 1000 == 0:
 				# 	print("Parsing trips: " + str(i) + " / " + str(len(trips["PID"])))
 				stInd = 0
@@ -586,7 +607,7 @@ class Visualization:
 				if isTAZ:
 					wage = popMap[pid]
 					wageFactor = max((wage-1) // Visualization.INCOME_SEP, 0)
-					time = min((int(endTime) + int(stTime)) / 2, 24*60*60) # Weird stuff, sometimes endTime > 24
+					time = min((int(endTime) + int(stTime)) / 2, 24*60*60) # Simulation has 30 hours, but we only want 24
 					timeFactor = int(max((time-1) // Visualization.TIME_SEP, 0))
 					for j in range(len(Visualization.MODE_GROUPS)):
 						inds.append(int(j * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * math.ceil(200000 / Visualization.INCOME_SEP) * len(polys) + timeFactor * math.ceil(200000 / Visualization.INCOME_SEP) * len(polys) + wageFactor * len(polys) + stInd))
@@ -607,7 +628,7 @@ class Visualization:
 
 		print ("Creating visual: modeShareByZone. IsTAZ = " + str(isTAZ))
 		zones = {}
-		print ("Copying zone information..")
+		# print ("Copying zone information..")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -631,6 +652,7 @@ class Visualization:
 
 		index = len(zones["features"])
 		if isTAZ:
+			# Create zones
 			for M in range(len(Visualization.MODE_GROUPS)):
 				for t in range(math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)):
 					for inc in range(math.ceil(200000 / Visualization.INCOME_SEP)):
@@ -647,6 +669,7 @@ class Visualization:
 							if index % 1000 == 0:
 								print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(200000 / Visualization.INCOME_SEP) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(polys) * len(Visualization.MODE_GROUPS)))
 		else:
+			# Create zones for filters
 			for M in range(len(Visualization.MODE_GROUPS)):
 				for i in range(len(polys)+1):
 					if i == 0 and M == 0:
@@ -704,8 +727,9 @@ class Visualization:
 					legMap[legKey] = thread.out[0][legKey]
 			ignored += thread.out[1]
 
-		print ("Legs parsed: " + str(len(self.legs["PID"]) - ignored))
-		print ("Legs ignored: " + str(ignored))
+		# Debug
+		# print ("Legs parsed: " + str(len(self.legs["PID"]) - ignored))
+		# print ("Legs ignored: " + str(ignored))
 		if ignored * 2 >= len(self.legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE LEGS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
 			return 0
 
@@ -730,9 +754,10 @@ class Visualization:
 				if not (m in ignored_modes):
 					ignored_modes.append(m)
 
-		print ("Trips parsed: " + str(len(self.trips["PID"]) - ignored))
-		print ("Trips ignored / broken: " + str(ignored))
-		print ("Modes ignored: " + ", ".join(ignored_modes))
+		# Debug
+		# print ("Trips parsed: " + str(len(self.trips["PID"]) - ignored))
+		# print ("Trips ignored / broken: " + str(ignored))
+		# print ("Modes ignored: " + ", ".join(ignored_modes))
 		print ("%i PIDs missing from the legs table. See ../output_files/missingPIDs.csv for the full list" %(missingNum))
 		if ignored * 2 >= len(self.legs["PID"]) and not ("y" in str(input("***MORE THAN 50% OF THE TRIPS TABLE WAS NOT USABLE. THIS IS MOST LIKELY CAUSED BY A BROKEN TABLE. CONTINUE? y/n***   ")).lower()):
 			return 0
@@ -2081,7 +2106,7 @@ class Visualization:
 						outFile.write(",".join(person) + "\n") 
 
 
-viz = Visualization("f4c0a90c-7802-11eb-947d-06b502d4a7f7")
+viz = Visualization("01729e42-41cd-11eb-94f5-9801a798306b")
 
 
 # While this makes one individual visualization much slower, it means that I can run all of them much faster (each can be disabled if you don't want to waste time grabbing useless tables)
