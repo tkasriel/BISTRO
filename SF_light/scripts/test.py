@@ -7,6 +7,7 @@ import sys, os, threading, copy, json, math
 
 from db_loader import BistroDB
 import numpy as np
+import runVis as rv
 import pandas as pd
 import shapely.geometry as geo
 import processingThread as pt
@@ -314,6 +315,7 @@ class Visualization:
 				poly["properties"]["avgTime"] = round((poly["properties"]["ttotTime"] + poly["properties"]["ftotTime"]) / (poly["properties"]["tnumNodes"] + poly["properties"]["fnumNodes"]) * 10) / 10
 		with open (Visualization.OUTPUT_FOLDER+"/travelTimes.json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/travelTimes.json", "../input_files/configs/travelTimes.json", "../visualizations/temp/travelTimes.html", "../input_files/circle_params.txt")
 		
 	def costsByZone (self, isTAZ, useStartPoints=True):
 		print ("Creating visual: costsByZone. IsTAZ = " + str(isTAZ))
@@ -500,6 +502,7 @@ class Visualization:
 		
 		with open (Visualization.OUTPUT_FOLDER+"/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
 	def modeShareByZone(self, isTAZ):
 		
 		#Run as multithread
@@ -775,6 +778,7 @@ class Visualization:
 			poly["properties"]["modal_percentage_hidden"] = (poly["properties"]["modal_count"] / totNum)
 		with open (Visualization.OUTPUT_FOLDER+"/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
 	def speedByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1020,7 +1024,7 @@ class Visualization:
 			polys = kwargs.get("polys")
 			st = kwargs.get("st")
 			end = kwargs.get("end")
-
+			# Associate [nodeID:[long,lat]]
 			nMap = [0 for i in range(100000)]
 			for i in range(st, end):
 				# nodeMap[int(n["properties"]["id"])] = n["geometry"]["coordinates"]
@@ -1036,6 +1040,7 @@ class Visualization:
 			linkMap = kwargs.get("linkMap")
 			st = kwargs.get("st")
 			end = kwargs.get("end")
+			# Associate [ind:[nodeID, nodeID, nodeID...]]
 			out = []
 			for i in range(st, end):
 				threadLock.acquire()
@@ -1067,6 +1072,7 @@ class Visualization:
 			st = kwargs.get("st")
 			end = kwargs.get("end")
 			out = {}
+			# Associate [vehicleID:vehicleType]
 			for i in range(st, end):
 				threadLock.acquire()
 				out[str(vehicles["vehicle"][i])] = str(vehicles["vehicleType"][i])
@@ -1078,6 +1084,7 @@ class Visualization:
 			st = kwargs.get("st")
 			end = kwargs.get("end")
 			out = {}
+			# Associate [vehicleType:capacity]
 			for i in range(st, end):
 				vehicleType = vehicleTypes["vehicleTypeId"][i]
 				capacity = max(1, int(vehicleTypes["seatingCapacity"][i]) + int(vehicleTypes["standingRoomCapacity"][i]))
@@ -1092,7 +1099,6 @@ class Visualization:
 			vehicleTypeMap = kwargs.get("vehicleTypeMap")
 			st = kwargs.get("st")
 			end = kwargs.get("end")
-			
 			for i in range(st, end):
 				threadLock.acquire()
 				stTime = paths["departureTime"][i]
@@ -1227,6 +1233,8 @@ class Visualization:
 
 		with open (Visualization.OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
+
 	def timeDelayByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1436,6 +1444,7 @@ class Visualization:
 		
 		with open (Visualization.OUTPUT_FOLDER+"/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
 	def travelDistanceByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1643,6 +1652,7 @@ class Visualization:
 		
 		with open (Visualization.OUTPUT_FOLDER+"/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
 	def tripDensityByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1833,6 +1843,7 @@ class Visualization:
 			thread.join()
 		with open (Visualization.OUTPUT_FOLDER+"/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
 	def heatMap(self):
 		def processLinks ():
 			linkMap = {}
