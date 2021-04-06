@@ -35,14 +35,12 @@ def createVisual (dataFile, configFile, outputFile, cordonFile=None):
     kmap.add_data(data=data, name="data")
     kmap.save_to_html(file_name=outputFile)
 
-fileName = ["costsByZone_end_TAZ",
-            "costsByZone_Start_TAZ",
-            "modeShare_TAZ",
-            "occupancyByZone_TAZ",
-            "timeDelayByZone_TAZ",
-            "totalDistance_TAZ",
-            "travelTimes",
-            "tripDensityByZone_TAZ"
-            ]
-for i in range(8):
-    createVisual("../output_files/01729e42-41cd-11eb-94f5-9801a798306b/{}.json".format(fileName[i]), "../input_files/configs/{}.json".format(fileName[i]), "../visualizations/temp/{}.html".format(fileName[i]), "../input_files/circle_params.txt")
+# fileName = ["costsByZone_end_TAZ",
+#             "costsByZone_Start_TAZ",
+#             "modeShare_TAZ",
+#             "occupancyByZone_TAZ",
+#             "timeDelayByZone_TAZ",
+#             "totalDistance_TAZ",
+#             "travelTimes",
+#             "tripDensityByZone_TAZ"
+#             ]

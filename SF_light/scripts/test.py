@@ -34,6 +34,7 @@ class Visualization:
 		
 		Visualization.SIMUL_ID = simulation_id
 		Visualization.OUTPUT_FOLDER = "../output_files/{}".format(simulation_id)
+		
 		try: # create dir if it doesn't already exist
 			os.mkdir(Visualization.OUTPUT_FOLDER) 
 		except:
