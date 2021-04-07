@@ -393,7 +393,6 @@ class BistroDB(object):
             WHERE pathtraversal_link.run_id = UUID_TO_BIN('{}')
             """.format(simulation_ids[0])
         )
-        
         # First, we can cache all the values in pathtraversal_link (will take O(N) instead of O(NM) )
         savedVals = {} # {vehicle_id: {path_num:[links]}}
         for line in path:
@@ -409,7 +408,6 @@ class BistroDB(object):
         df = pd.DataFrame(data, columns=df_columns+['passengers'])
         df = df.groupby(df_columns).agg({'passengers':lambda x: list(x)})
         df.reset_index(inplace=True)
-
         # We won't create path column just yet...
         # First, we'll order the values we need
         toMerge = []
@@ -421,9 +419,10 @@ class BistroDB(object):
             else:
                 toMerge.append(None)
 
+
         # Unfortunately, pandas makes it really hard to change individual values, so we'll just add them in bulk
         df.loc[:, "path"] = toMerge[:]
-        
+
         # Shouldn't be necessary, but we can clear savedVals for that sweet, sweet memory
         del savedVals
         del toMerge
