@@ -1,5 +1,6 @@
 from keplergl import KeplerGl
 import json
+import os, sys
 import cordonConvert
 
 def createVisual (dataFile, configFile, outputFile, cordonFile=None):
@@ -33,6 +34,14 @@ def createVisual (dataFile, configFile, outputFile, cordonFile=None):
     kmap.config = config
     kmap.add_data(data=cordon, name="cordon")
     kmap.add_data(data=data, name="data")
+    try: # create dir if it doesn't already exist
+            os.mkdir("/".join(outputFile.split("/")[0:-2]))
+    except:
+        pass
+    try:
+        os.mkdir(os.mkdir("/".join(outputFile.split("/")[0:-1])))
+    except:
+        pass
     kmap.save_to_html(file_name=outputFile)
 
 # fileName = ["costsByZone_end_TAZ",

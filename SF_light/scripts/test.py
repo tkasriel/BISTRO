@@ -33,13 +33,17 @@ class Visualization:
 	def __init__(self, simulation_id):
 		
 		Visualization.SIMUL_ID = simulation_id
-		Visualization.OUTPUT_FOLDER = "../output_files/{}".format(simulation_id)
+		Visualization.OUTPUT_FOLDER = "../output_files/"
 		
 		try: # create dir if it doesn't already exist
-			os.mkdir(Visualization.OUTPUT_FOLDER) 
+			os.mkdir(Visualization.OUTPUT_FOLDER)
 		except:
 			pass
-		
+		Visualization.OUTPUT_FOLDER +="{}".format(simulation_id)
+		try:
+			os.mkdir(Visualization.OUTPUT_FOLDER)
+		except:
+			pass
 		# Read options file
 		with open("options.txt", "r") as optionsFile:
 			for line in optionsFile.readlines():
@@ -380,8 +384,8 @@ class Visualization:
 						# zones["features"][index]["properties"]["income"] = ( str(inc * Visualization.INCOME_SEP) if inc == 0 else str(inc * Visualization.INCOME_SEP + 1) ) + "-" + str((inc+1) * Visualization.INCOME_SEP)
 						# zones["features"][index]["properties"]["time"] = 1
 						index += 1
-						if index % 1000 == 0:
-							print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys) * len(polys) * len(Visualization.MODES))) # * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)))
+						# if index % 1000 == 0:
+						# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys) * len(polys) * len(Visualization.MODES))) # * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)))
 		
 		# Associate [linkID:[fromID, toID]]
 		linkMap = [[] for i in range(100000)]
@@ -401,8 +405,8 @@ class Visualization:
 		legMap = {} # {PID: [tripNum:[st, end]]}
 		ignored = 0
 		for i in range(len(self.legs["PID"])): 
-			if i % 1000 == 0:
-				print ("Parsing legs: " + str(i) + " / " + str(len(self.legs["PID"])))
+			# if i % 1000 == 0:
+			# 	print ("Parsing legs: " + str(i) + " / " + str(len(self.legs["PID"])))
 			pid = self.legs["PID"][i]
 			if not (pid in list(legMap.keys())):
 				legMap[pid] = []
@@ -670,8 +674,8 @@ class Visualization:
 							zones["features"][index]["properties"]["time"] = "%d:%02d:%02d" %((t * Visualization.TIME_SEP) // 3600, ((t*Visualization.TIME_SEP) // 60) % 60, (t * Visualization.TIME_SEP) % 60)
 							zones["features"][index]["properties"]["income"] = ( str(inc * Visualization.INCOME_SEP) if inc == 0 else str(inc * Visualization.INCOME_SEP + 1) ) + "-" + str((inc+1) * Visualization.INCOME_SEP)
 							index += 1
-							if index % 1000 == 0:
-								print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(200000 / Visualization.INCOME_SEP) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(polys) * len(Visualization.MODE_GROUPS)))
+							# if index % 1000 == 0:
+							# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(200000 / Visualization.INCOME_SEP) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(polys) * len(Visualization.MODE_GROUPS)))
 		else:
 			# Create zones for filters
 			for M in range(len(Visualization.MODE_GROUPS)):
@@ -688,8 +692,8 @@ class Visualization:
 						zones["features"][index]["properties"]["modal_group"] = Visualization.MODE_GROUPS[M]
 						zones["features"][index]["properties"]["ind"] = index
 						index += 1
-						if index % 1000 == 0:
-							print ("Creating zones: " + str(index - len(polys)) + " / " + str((len(polys)+1) * len(polys) * len(Visualization.MODE_GROUPS)))
+						# if index % 1000 == 0:
+						# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str((len(polys)+1) * len(polys) * len(Visualization.MODE_GROUPS)))
 		#Create links
 		linkMap = [[] for i in range(100000)]
 		for i in range(len(self.links["LinkId"])):
@@ -832,7 +836,7 @@ class Visualization:
 		print ("Creating visual: speedByZone. IsTAZ = " + str(isTAZ))
 
 		zones = {}
-		print ("Copying zone information..")
+		# print ("Copying zone information..")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -949,7 +953,7 @@ class Visualization:
 
 		print ("Creating visual: VMTByZone. IsTAZ = " + str(isTAZ))
 		zones = {}
-		print ("Copying zone information..")
+		# print ("Copying zone information..")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -980,8 +984,8 @@ class Visualization:
 							zones["features"][index]["properties"]["linkType"] = ["motorway", "residential"][i]
 							zones["features"][index]["properties"]["mode"] = Visualization.MODES[m]
 							index += 1
-							if index % 1000 == 0:
-								print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(Visualization.MODES) * 2 * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)))
+							# if index % 1000 == 0:
+							# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(Visualization.MODES) * 2 * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)))
 		else:
 			for j in range(len(polys)):
 				poly = zones["features"][j]
@@ -989,8 +993,8 @@ class Visualization:
 				zones["features"][index]["properties"]["ind"] = index
 				zones["features"][index]["properties"]["linkType"] = "residential"
 				index += 1
-				if index % 1000 == 0:
-					print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys)))
+				# if index % 1000 == 0:
+				# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str(len(polys)))
 		nodeMap = [0 for i in range(100000)]
 		threads = []
 		for i in range(Visualization.NUM_THREADS):
@@ -1131,7 +1135,7 @@ class Visualization:
 
 		print ("Creating visual: occupancyByZone. IsTAZ = " + str(isTAZ))
 		zones = {}
-		print ("Copying zone information..")
+		# print ("Copying zone information..")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -1159,8 +1163,8 @@ class Visualization:
 					zones["features"][index]["properties"]["mode"] = Visualization.MODES[m]
 					zones["features"][index]["properties"]["ind"] = index
 					index += 1
-					if index % 1000 == 0:
-						print ("Creating zones: " + str(index) + " / " + str(len(polys) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(Visualization.MODES)))
+					# if index % 1000 == 0:
+					# 	print ("Creating zones: " + str(index) + " / " + str(len(polys) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(Visualization.MODES)))
 
 		nodeMap = [0 for i in range(100000)]
 		threads = []
@@ -1347,7 +1351,7 @@ class Visualization:
 
 		print ("Creating visual: timeDelayByZone. IsTAZ = " + str(isTAZ))
 		zones = {}
-		print ("Copying zone information...")
+		# print ("Copying zone information...")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -1379,8 +1383,8 @@ class Visualization:
 							zones["features"][index]["properties"]["income"] = ( str(inc * Visualization.INCOME_SEP) if inc == 0 else str(inc * Visualization.INCOME_SEP + 1) ) + "-" + str((inc+1) * Visualization.INCOME_SEP)
 							zones["features"][index]["properties"]["ind"] = index
 							index += 1
-							if index % 1000 == 0:
-								print ("Creating zones: " + str(index) + " / " + str(len(polys) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(Visualization.MODES) * math.ceil(200000 / Visualization.INCOME_SEP)))
+							# if index % 1000 == 0:
+							# 	print ("Creating zones: " + str(index) + " / " + str(len(polys) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(Visualization.MODES) * math.ceil(200000 / Visualization.INCOME_SEP)))
 		else:
 			for m in range(len(Visualization.MODES)):
 				for i in range(len(polys)+1):
@@ -1396,8 +1400,8 @@ class Visualization:
 							zones["features"][index]["properties"]["origin"] = zones["features"][i-1]["properties"]["name"]
 						zones["features"][index]["properties"]["ind"] = index
 						index += 1
-						if index % 1000 == 0:
-							print ("Creating zones: " + str(index) + " / " + str(len(polys) * len(Visualization.MODES) * len(polys)+1))
+						# if index % 1000 == 0:
+						# 	print ("Creating zones: " + str(index) + " / " + str(len(polys) * len(Visualization.MODES) * len(polys)+1))
 
 		nodeMap = [0 for i in range(10000)]
 		threads = []
@@ -1555,7 +1559,7 @@ class Visualization:
 
 		print ("Creating visual: totalDistance. IsTAZ = " + str(isTAZ))
 		zones = {}
-		print ("Copying zone information...")
+		# print ("Copying zone information...")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -1587,8 +1591,8 @@ class Visualization:
 							zones["features"][index]["properties"]["income"] = ( str(inc * Visualization.INCOME_SEP) if inc == 0 else str(inc * Visualization.INCOME_SEP + 1) ) + "-" + str((inc+1) * Visualization.INCOME_SEP)
 							zones["features"][index]["properties"]["ind"] = index
 							index += 1
-							if index % 1000 == 0:
-								print ("Creating zones: " + str(index) + " / " + str(len(polys) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(Visualization.MODES) * math.ceil(200000 / Visualization.INCOME_SEP)))
+							# if index % 1000 == 0:
+							# 	print ("Creating zones: " + str(index) + " / " + str(len(polys) * math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(Visualization.MODES) * math.ceil(200000 / Visualization.INCOME_SEP)))
 		else:
 			for m in range(len(Visualization.MODES)):
 				for i in range(len(polys)+1):
@@ -1604,8 +1608,8 @@ class Visualization:
 							zones["features"][index]["properties"]["origin"] = zones["features"][i-1]["properties"]["name"]
 						zones["features"][index]["properties"]["ind"] = index
 						index += 1
-						if index % 1000 == 0:
-							print ("Creating zones: " + str(index) + " / " + str(len(polys) * len(Visualization.MODES) * len(polys)+1))
+						# if index % 1000 == 0:
+						# 	print ("Creating zones: " + str(index) + " / " + str(len(polys) * len(Visualization.MODES) * len(polys)+1))
 
 		nodeMap = [0 for i in range(10000)]
 		threads = []
@@ -1755,7 +1759,7 @@ class Visualization:
 
 		print ("Creating visual: tripDensityByZone. IsTAZ = " + str(isTAZ))
 		zones = {}
-		print ("Copying zone information..")
+		# print ("Copying zone information..")
 		if isTAZ:
 			zones = copy.deepcopy(self.TAZZones)
 		else:
@@ -1782,8 +1786,8 @@ class Visualization:
 					zones["features"][index]["properties"]["ind"] = index
 					zones["features"][index]["properties"]["origin"] = str(int(zones["features"][origin-1]["properties"]["name"]))
 					index += 1
-					if index % 1000 == 0:
-						print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(polys)))
+					# if index % 1000 == 0:
+					# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(polys)))
 		else:
 			for t in range(math.ceil(24 * 60 * 60 / Visualization.TIME_SEP)):
 				if t == 0:
@@ -1794,8 +1798,8 @@ class Visualization:
 					zones["features"][index]["properties"]["ind"] = index
 					zones["features"][index]["properties"]["time"] = "%d:%02d:%02d" %((t * Visualization.TIME_SEP) // 3600, ((t*Visualization.TIME_SEP) // 60) % 60, (t * Visualization.TIME_SEP) % 60)
 					index += 1
-					if index % 1000 == 0:
-						print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(polys)))
+					# if index % 1000 == 0:
+					# 	print ("Creating zones: " + str(index - len(polys)) + " / " + str(math.ceil(24 * 60 * 60 / Visualization.TIME_SEP) * len(polys)))
 		
 		linkMap = [[] for i in range(100000)]
 		for i in range(len(self.links["LinkId"])):
