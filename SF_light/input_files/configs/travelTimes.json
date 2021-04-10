@@ -260,7 +260,7 @@
           },
           "visualChannels": {
             "colorField": {
-              "name": "avgTime",
+              "name": "average time (s)",
               "type": "real"
             },
             "colorScale": "quantile",
@@ -269,7 +269,7 @@
             "sizeField": null,
             "sizeScale": "linear",
             "heightField": {
-              "name": "avgTime",
+              "name": "average time (s)",
               "type": "real"
             },
             "heightScale": "linear",

@@ -185,11 +185,11 @@ class Visualization:
 			# These are the values stored by the polygon
 			poly["properties"]["ttotTime"] = 0
 			poly["properties"]["tnumNodes"] = 0
-			poly["properties"]["avgTimeTo"] = None
+			poly["properties"]["average time to (s)"] = None
 			poly["properties"]["ftotTime"] = 0
 			poly["properties"]["fnumNodes"] = 0
-			poly["properties"]["avgTimeFrom"] = None
-			poly["properties"]["avgTime"] = None
+			poly["properties"]["average time from (s)"] = None
+			poly["properties"]["average time (s)"] = None
 
 			
 
@@ -313,11 +313,11 @@ class Visualization:
 		# Round to 0.1
 		for i, poly in enumerate(zones["features"]):
 			if poly["properties"]["tnumNodes"] > 0:
-				poly["properties"]["avgTimeTo"] = round(poly["properties"]["ttotTime"] / poly["properties"]["tnumNodes"] * 10) / 10
+				poly["properties"]["average time to (s)"] = round(poly["properties"]["ttotTime"] / poly["properties"]["tnumNodes"] * 10) / 10
 			if poly["properties"]["fnumNodes"] > 0:
-				poly["properties"]["avgTimeFrom"] = round(poly["properties"]["ftotTime"] / poly["properties"]["fnumNodes"] * 10) / 10
+				poly["properties"]["average time from (s)"] = round(poly["properties"]["ftotTime"] / poly["properties"]["fnumNodes"] * 10) / 10
 			if poly["properties"]["tnumNodes"] + poly["properties"]["fnumNodes"] > 0:
-				poly["properties"]["avgTime"] = round((poly["properties"]["ttotTime"] + poly["properties"]["ftotTime"]) / (poly["properties"]["tnumNodes"] + poly["properties"]["fnumNodes"]) * 10) / 10
+				poly["properties"]["average time (s)"] = round((poly["properties"]["ttotTime"] + poly["properties"]["ftotTime"]) / (poly["properties"]["tnumNodes"] + poly["properties"]["fnumNodes"]) * 10) / 10
 		with open (Visualization.OUTPUT_FOLDER+"/travelTimes.json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
 		rv.createVisual(Visualization.OUTPUT_FOLDER+"/travelTimes.json", "../input_files/configs/travelTimes.json", "../visualizations/temp/travelTimes.html", "../input_files/circle_params.txt")
@@ -334,9 +334,9 @@ class Visualization:
 		for i, poly in enumerate(zones["features"]):
 			polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 			poly["properties"]["mode"] = Visualization.MODES[0]
-			poly["properties"]["totCost"] = 0
+			poly["properties"]["total cost ($)"] = 0
 			poly["properties"]["numVals"] = 0
-			poly["properties"]["avgCost"] = None
+			poly["properties"]["average cost ($)"] = None
 			poly["properties"]["ind"] = i
 			if isTAZ:
 				poly["properties"]["income"] = "0-" + str(Visualization.INCOME_SEP)
@@ -490,7 +490,7 @@ class Visualization:
 				inds = [ind, all_modeInd, all_fromInd, all_allInd]
 			cost = (int(self.trips["fuelCost"][i]) + int(self.trips["Toll"][i])) if int(self.trips["Fare"][i]) == 0 else int(self.trips["Fare"][i])
 			for o, index in enumerate(inds):
-				zones["features"][index]["properties"]["totCost"] += cost
+				zones["features"][index]["properties"]["total cost ($)"] += cost
 				zones["features"][index]["properties"]["numVals"] += 1
 
 		# Debug
@@ -503,7 +503,7 @@ class Visualization:
 
 		for i, poly in enumerate(zones["features"]):
 			if poly["properties"]["numVals"] > 0:
-				poly["properties"]["avgCost"] = round(poly["properties"]["totCost"] / poly["properties"]["numVals"] * 10) / 10
+				poly["properties"]["average cost ($)"] = round(poly["properties"]["total cost ($)"] / poly["properties"]["numVals"] * 10) / 10
 		
 		with open (Visualization.OUTPUT_FOLDER+"/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
@@ -650,7 +650,7 @@ class Visualization:
 			poly["properties"]["modal_group"] = Visualization.MODE_GROUPS[0]
 			poly["properties"]["modal_count"] = 0
 			poly["properties"]["modal_percentage"] = "0%"
-			poly["properties"]["modal_percentage_hidden"] = 0
+			poly["properties"]["modal group percentage"] = 0
 			poly["properties"]["ind"] = i
 			if isTAZ:
 				poly["properties"]["income"] = "0-" + str(Visualization.INCOME_SEP)
@@ -780,7 +780,7 @@ class Visualization:
 			for j, m in enumerate(Visualization.MODES):
 				poly["properties"][m + "_percentage"] = "%i%%"%((poly["properties"][m] / totNum) * 100)
 			poly["properties"]["modal_percentage"] = "%i%%"%((poly["properties"]["modal_count"] / totNum) * 100)
-			poly["properties"]["modal_percentage_hidden"] = (poly["properties"]["modal_count"] / totNum)
+			poly["properties"]["modal group percentage"] = (poly["properties"]["modal_count"] / totNum)
 		with open (Visualization.OUTPUT_FOLDER+"/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
 		rv.createVisual(Visualization.OUTPUT_FOLDER+"/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
@@ -846,7 +846,7 @@ class Visualization:
 			polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 			poly["properties"]["totSpeed"] = 0
 			poly["properties"]["numVals"] = 0
-			poly["properties"]["avgSpeed"] = 0
+			poly["properties"]["average speed"] = 0
 			poly["properties"]["ind"] = i
 			poly["properties"]["linkType"] = "motorway"
 			if not isTAZ:
@@ -899,7 +899,7 @@ class Visualization:
 		
 		for i, zone in enumerate(zones["features"]):
 			if zone["properties"]["numVals"] > 0:
-				zone["properties"]["avgSpeed"] = zone["properties"]["totSpeed"] / zone["properties"]["numVals"]
+				zone["properties"]["average speed"] = zone["properties"]["totSpeed"] / zone["properties"]["numVals"]
 		with open (Visualization.OUTPUT_FOLDER+"/speedByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
 	def VMTByZone (self, isTAZ):
@@ -1145,7 +1145,7 @@ class Visualization:
 			polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
 			poly["properties"]["totalVehicleOccupancy"] = 0.0
 			poly["properties"]["numVals"] = 0
-			poly["properties"]["avgVehicleOccupancy"] = None
+			poly["properties"]["average occupancy"] = None
 			poly["properties"]["ind"] = i
 			poly["properties"]["time"] = "0:00:00"
 			poly["properties"]["mode"] = Visualization.MODES[0]
@@ -1234,12 +1234,11 @@ class Visualization:
 		
 		for i in range(len(zones["features"])):
 			if zones["features"][i]["properties"]["numVals"] > 0:
-				zones["features"][i]["properties"]["avgVehicleOccupancy"] = zones["features"][i]["properties"]["totalVehicleOccupancy"] / float(zones["features"][i]["properties"]["numVals"])
+				zones["features"][i]["properties"]["average occupancy"] = zones["features"][i]["properties"]["totalVehicleOccupancy"] / float(zones["features"][i]["properties"]["numVals"])
 
 		with open (Visualization.OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
 		rv.createVisual(Visualization.OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
-
 	def timeDelayByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1346,7 +1345,7 @@ class Visualization:
 
 				threadLock.acquire()
 				for ind in inds:
-					zones["features"][ind]["properties"]["timeDelay"] = totalTime - expectedTime
+					zones["features"][ind]["properties"]["time delay (s)"] = totalTime - expectedTime
 				threadLock.release()
 
 		print ("Creating visual: timeDelayByZone. IsTAZ = " + str(isTAZ))
@@ -1359,7 +1358,7 @@ class Visualization:
 		polys = []
 		for i, poly in enumerate(zones["features"]):
 			polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
-			poly["properties"]["timeDelay"] = None
+			poly["properties"]["time delay (s)"] = None
 			poly["properties"]["mode"] = Visualization.MODES[0]
 			poly["properties"]["ind"] = i
 			if isTAZ:
@@ -1554,7 +1553,7 @@ class Visualization:
 
 				threadLock.acquire()
 				for ind in inds:
-					zones["features"][ind]["properties"]["total distance"] = totalDistance
+					zones["features"][ind]["properties"]["total distance (m)"] = totalDistance
 				threadLock.release()
 
 		print ("Creating visual: totalDistance. IsTAZ = " + str(isTAZ))
@@ -1567,7 +1566,7 @@ class Visualization:
 		polys = []
 		for i, poly in enumerate(zones["features"]):
 			polys.append(geo.Polygon(poly["geometry"]["coordinates"][0]))
-			poly["properties"]["total distance"] = None
+			poly["properties"]["total distance (m)"] = None
 			poly["properties"]["mode"] = Visualization.MODES[0]
 			poly["properties"]["ind"] = i
 			if isTAZ:

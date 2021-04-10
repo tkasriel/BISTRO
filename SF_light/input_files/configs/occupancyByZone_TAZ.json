@@ -245,7 +245,7 @@
           },
           "visualChannels": {
             "colorField": {
-              "name": "avgVehicleOccupancy",
+              "name": "average occupancy",
               "type": "real"
             },
             "colorScale": "quantile",

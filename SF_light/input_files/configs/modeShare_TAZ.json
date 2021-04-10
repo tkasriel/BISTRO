@@ -263,7 +263,7 @@
           },
           "visualChannels": {
             "colorField": {
-              "name": "modal_percentage_hidden",
+              "name": "modal group percentage",
               "type": "real"
             },
             "colorScale": "quantize",

@@ -263,7 +263,7 @@
           },
           "visualChannels": {
             "colorField": {
-              "name": "avgCost",
+              "name": "average cost ($)",
               "type": "real"
             },
             "colorScale": "quantile",

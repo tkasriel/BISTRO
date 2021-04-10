@@ -263,7 +263,7 @@
           },
           "visualChannels": {
             "colorField": {
-              "name": "timeDelay",
+              "name": "time delay (s)",
               "type": "real"
             },
             "colorScale": "quantile",
@@ -272,7 +272,7 @@
             "sizeField": null,
             "sizeScale": "linear",
             "heightField": {
-              "name": "timeDelay",
+              "name": "time delay (s)",
               "type": "real"
             },
             "heightScale": "linear",

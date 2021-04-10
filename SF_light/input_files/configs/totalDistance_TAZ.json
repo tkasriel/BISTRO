@@ -260,7 +260,7 @@
           },
           "visualChannels": {
             "colorField": {
-              "name": "total distance",
+              "name": "total distance (m)",
               "type": "real"
             },
             "colorScale": "quantile",
@@ -269,7 +269,7 @@
             "sizeField": null,
             "sizeScale": "linear",
             "heightField": {
-              "name": "total distance",
+              "name": "total distance (m)",
               "type": "real"
             },
             "heightScale": "linear",

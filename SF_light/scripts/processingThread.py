@@ -8,6 +8,6 @@ class processingThread (threading.Thread):
         self.func = runFunction
         self.kwargs = kwargs
     def run(self):
-        print(self.name + ": Starting process")
+        # print(self.name + ": Starting process")
         self.out = self.func(**self.kwargs)
-        print(self.name + ": Process finished")
+        # print(self.name + ": Process finished")
