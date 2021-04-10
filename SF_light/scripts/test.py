@@ -507,7 +507,7 @@ class Visualization:
 		
 		with open (Visualization.OUTPUT_FOLDER+"/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
-		rv.createVisual(Visualization.OUTPUT_FOLDER+"/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/costsByZone_" + ("Start" if useStartPoints else "end") + "_" + ("TAZ" if isTAZ else "neighbors")+".html", "../input_files/circle_params.txt")
 	def modeShareByZone(self, isTAZ):
 		
 		#Run as multithread
@@ -783,7 +783,7 @@ class Visualization:
 			poly["properties"]["modal group percentage"] = (poly["properties"]["modal_count"] / totNum)
 		with open (Visualization.OUTPUT_FOLDER+"/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
-		rv.createVisual(Visualization.OUTPUT_FOLDER+"/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/modeShare_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/modeShare_"+("TAZ" if isTAZ else "neighbors")+".html", "../input_files/circle_params.txt")
 	def speedByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1238,7 +1238,7 @@ class Visualization:
 
 		with open (Visualization.OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
-		rv.createVisual(Visualization.OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/occupancyByZone_"+("TAZ" if isTAZ else "neighbors")+".html", "../input_files/circle_params.txt")
 	def timeDelayByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1448,7 +1448,7 @@ class Visualization:
 		
 		with open (Visualization.OUTPUT_FOLDER+"/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
-		rv.createVisual(Visualization.OUTPUT_FOLDER+"/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/timeDelayByZone_"+("TAZ" if isTAZ else "neighbors")+".html", "../input_files/circle_params.txt")
 	def travelDistanceByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1656,7 +1656,7 @@ class Visualization:
 		
 		with open (Visualization.OUTPUT_FOLDER+"/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
-		rv.createVisual(Visualization.OUTPUT_FOLDER+"/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/totalDistance_"+("TAZ" if isTAZ else "neighbors")+".html", "../input_files/circle_params.txt")
 	def tripDensityByZone(self, isTAZ):
 		def processNodes (**kwargs):
 			'''kwargs: polys, nodes, st, end'''
@@ -1847,7 +1847,7 @@ class Visualization:
 			thread.join()
 		with open (Visualization.OUTPUT_FOLDER+"/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "w") as out:
 			json.dump(zones, out, allow_nan=True)
-		rv.createVisual(Visualization.OUTPUT_FOLDER+"/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/circle_params.txt")
+		rv.createVisual(Visualization.OUTPUT_FOLDER+"/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../input_files/configs/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".json", "../visualizations/temp/tripDensityByZone_"+("TAZ" if isTAZ else "neighbors")+".html", "../input_files/circle_params.txt")
 	def heatMap(self):
 		def processLinks ():
 			linkMap = {}
